@@ -1,0 +1,9 @@
+{
+  "name": "authoritative-architecture-decision-resolver",
+  "version": "1.0.0",
+  "description": "Frontend is plain HTML/CSS/JS (no build step). This file is included only to satisfy tooling that expects a package.json at the project root; there are no npm dependencies to install.",
+  "private": true,
+  "scripts": {
+    "note": "echo 'No build step required. Serve backend/ with uvicorn; it serves frontend/ automatically at http://localhost:8000'"
+  }
+}

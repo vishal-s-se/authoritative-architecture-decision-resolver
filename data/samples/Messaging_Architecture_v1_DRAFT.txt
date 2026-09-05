@@ -1,0 +1,16 @@
+Messaging Architecture
+Version: 1
+Status: DRAFT
+Owner: Principal Engineer
+
+Section 1: Overview
+This document defines the architecture under consideration. The proposed approach uses Kafka-based event streaming.
+
+Section 2: Rationale
+This approach was evaluated against alternatives for scalability, operational cost, and long-term maintainability.
+
+Section 4.2: Decision
+The architecture for Messaging Architecture uses Kafka-based event streaming going forward. Early draft circulated for informal feedback; not yet submitted for approval.
+
+Section 5: Rollout
+Rollout is planned across all affected business units within two quarters.

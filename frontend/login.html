@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Login — Authoritative Architecture Decision Resolver</title>
+<link rel="stylesheet" href="styles.css"/>
+<style>
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  #loginBox {
+    width: 360px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  }
+  #loginBox .brand { text-align: center; margin-bottom: 22px; }
+  #loginBox .brand div:first-child { font-weight: 700; font-size: 17px; color: var(--accent); letter-spacing: .5px; }
+  #loginBox .brand small { color: var(--muted); }
+  #loginError { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 16px; }
+  #loginBox button { width: 100%; margin-top: 16px; }
+  .demo-hint { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--muted); }
+  .demo-hint code { color: var(--accent-2); }
+</style>
+</head>
+<body>
+  <div id="loginBox">
+    <div class="brand">
+      <div>ADR RESOLVER</div>
+      <small>Authority &amp; Audit Console</small>
+    </div>
+    <form id="loginForm">
+      <label>Username</label>
+      <input type="text" id="username" autocomplete="username" required/>
+      <label>Password</label>
+      <input type="password" id="password" autocomplete="current-password" required/>
+      <div id="loginError"></div>
+      <button type="submit">Log In</button>
+    </form>
+    <div class="demo-hint">
+      Demo accounts (see <code>credentials_login.txt</code> in the project root):<br/>
+      <code>admin / admin123</code> — ADMIN<br/>
+      <code>architect1 / architect123</code> — ARCHITECT<br/>
+      <code>engineer1 / engineer123</code> — ENGINEER<br/>
+      <code>viewer1 / viewer123</code> — VIEWER
+    </div>
+  </div>
+<script>
+const API = window.location.origin;
+
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const errEl = document.getElementById("loginError");
+  errEl.textContent = "";
+  try {
+    const res = await fetch(API + "/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Login failed" }));
+      throw new Error(err.detail || "Login failed");
+    }
+    const data = await res.json();
+    localStorage.setItem("adr_token", data.token);
+    localStorage.setItem("adr_role", data.role);
+    localStorage.setItem("adr_user", data.username);
+    window.location.href = "index.html";
+  } catch (err) {
+    errEl.textContent = err.message || "Invalid username or password.";
+  }
+});
+</script>
+</body>
+</html>

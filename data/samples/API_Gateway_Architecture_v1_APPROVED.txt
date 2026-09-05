@@ -1,0 +1,16 @@
+API Gateway Architecture
+Version: 1
+Status: APPROVED
+Owner: Platform Architecture Team
+
+Section 1: Overview
+This document defines the architecture under consideration. The proposed approach uses Envoy-based edge proxying.
+
+Section 2: Rationale
+This approach was evaluated against alternatives for scalability, operational cost, and long-term maintainability.
+
+Section 4.2: Decision
+The architecture for API Gateway Architecture uses Envoy-based edge proxying going forward. Approved as the standard gateway layer for all external APIs.
+
+Section 5: Rollout
+Rollout is planned across all affected business units within two quarters.

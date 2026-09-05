@@ -1,0 +1,12 @@
+backend/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+data/adr.db
+data/adr.db-*
+
+credentials_login.txt
+uvicorn.*.log
+.env
+.DS_Store

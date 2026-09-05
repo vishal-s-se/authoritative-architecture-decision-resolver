@@ -1,0 +1,20 @@
+{
+  "weights": {
+    "approval": 0.4,
+    "ownership": 0.25,
+    "recency": 0.2,
+    "version": 0.1,
+    "evidence": 0.05
+  },
+  "status_scores": {
+    "APPROVED": 1.0,
+    "PENDING_REVIEW": 0.4,
+    "DRAFT": 0.2,
+    "SUPERSEDED": 0.1,
+    "ARCHIVED": 0.05,
+    "REJECTED": 0.0
+  },
+  "recency_half_life_days": 180,
+  "ai_provider": "mock",
+  "ai_model": "mock-llm"
+}

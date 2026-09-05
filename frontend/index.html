@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Authoritative Architecture Decision Resolver</title>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div class="brand">ADR RESOLVER<small>Authority &amp; Audit Console</small></div>
+    <div class="nav-item active" data-page="dashboard">Dashboard</div>
+    <div class="nav-item" data-page="ask">Ask AI</div>
+    <div class="nav-item" data-page="documents">Documents</div>
+    <div class="nav-item" data-page="resolver">Authority Resolver</div>
+    <div class="nav-item" data-page="approvals">Approvals</div>
+    <div class="nav-item" data-page="override">Manual Override</div>
+    <div class="nav-item" data-page="audit">Audit Trail</div>
+    <div class="nav-item" data-page="eval">Test / Evaluation</div>
+    <div class="nav-item" data-page="settings">Settings</div>
+    <div id="session">
+      Logged in as <b id="whoami">—</b>
+      <button id="logoutBtn" class="secondary" style="width:100%;margin-top:8px;">Log Out</button>
+    </div>
+  </div>
+  <div id="main"></div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
