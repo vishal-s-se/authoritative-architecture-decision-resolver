@@ -137,6 +137,7 @@ def init_db():
 
 
 def reset_db():
+    init_db()
     conn = get_conn()
     for table in (
         "approvals", "access_rules", "authoritative", "audit_log", "feedback",
