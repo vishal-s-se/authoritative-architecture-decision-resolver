@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 os.environ["ADR_DB_PATH"] = "/tmp/adr_seed_test.db"
@@ -66,3 +67,11 @@ def test_seed_dates_are_reproducible():
     second_conn = get_conn()
     second = [tuple(row) for row in second_conn.execute("SELECT id, created_date, modified_date FROM versions ORDER BY id").fetchall()]
     assert first == second
+
+
+@pytest.mark.parametrize("scenario_type", sorted(SCENARIOS))
+def test_each_scenario_type_has_a_passing_ground_truth_row(scenario_type):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM eval_queries WHERE scenario_type=? LIMIT 1", (scenario_type,)).fetchone()
+    assert row is not None
+    assert row["expected_behavior"] in {"SELECT", "FLAG_CONFLICT", "DENY", "AMBIGUOUS"}

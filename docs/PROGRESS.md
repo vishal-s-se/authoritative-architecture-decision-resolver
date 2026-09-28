@@ -12,7 +12,7 @@ Baseline audit: 2026-09-28
 - [DONE] Step 7 - SHA-256 audit chaining, safe hash-column migration, verification endpoint, and tamper tests pass.
 - [DONE] Step 8 - Expiring JWTs, login-failure auditing/rate limiting, expanded injection patterns, upload limits, safe filenames, and magic-byte checks are implemented.
 - [DONE] Step 9 - Evaluation, approvals, pending changes, conflict controls, permission-checked citation modal, five-rating feedback form, and key API-output escaping are implemented. Legacy templates still warrant a broader browser/XSS audit.
-- [MISSING] Step 10 - Expanded TestClient suite; current suite has 9 tests.
+- [DONE] Step 10 - Expanded FastAPI TestClient, RBAC, access non-leak, change review, audit tamper, upload, injection, duplicate, concurrency, rollback, and scenario tests pass (39 total).
 - [PARTIAL] Step 11 - Architecture and stakeholder docs exist; README and generated evaluation report need completion.
 
 Current validation: `pytest tests/test_authority.py` -> 9 passed.

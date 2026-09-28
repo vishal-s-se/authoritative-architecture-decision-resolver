@@ -104,8 +104,10 @@ DEMO_USERS = [
 def ensure_default_users():
     conn = get_conn()
     for username, password, role in DEMO_USERS:
+        if conn.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone():
+            continue
         conn.execute(
-            "INSERT OR IGNORE INTO users (username, password_hash, role) VALUES (?,?,?)",
+            "INSERT INTO users (username, password_hash, role) VALUES (?,?,?)",
             (username, bcrypt.hash(password), role),
         )
     conn.commit()

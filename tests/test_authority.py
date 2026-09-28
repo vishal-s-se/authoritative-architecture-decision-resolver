@@ -12,6 +12,7 @@ Run with:  pytest tests/test_authority.py  (from backend/, with PYTHONPATH set)
 import os
 import sys
 import json
+import threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 os.environ["ADR_DB_PATH"] = "/tmp/adr_test.db"
@@ -134,3 +135,26 @@ def test_case_9_document_instructions_are_neutralized():
     cleaned = sanitize_document_text(text)
     assert "ignore previous instructions" not in cleaned.lower()
     assert "OAuth" in cleaned
+
+
+def test_concurrent_overrides_leave_one_consistent_authoritative_row():
+    conn = get_conn()
+    for version in conn.execute("SELECT id FROM versions WHERE document_id='doc-x'").fetchall():
+        conn.execute("DELETE FROM approvals WHERE version_id=?", (version["id"],))
+    conn.execute("DELETE FROM versions WHERE document_id='doc-x'")
+    conn.execute("DELETE FROM authoritative WHERE document_id='doc-x'")
+    conn.commit()
+    v1 = _add_version("doc-x", 1, "APPROVED", "Architecture Board", "2026-08-10T00:00:00+00:00")
+    v2 = _add_version("doc-x", 2, "DRAFT", "Developer", "2026-08-24T00:00:00+00:00")
+    errors = []
+    def apply(version_id):
+        try:
+            authority.manual_override("doc-x", version_id, "admin", "concurrent test override")
+        except Exception as error:
+            errors.append(error)
+    threads = [threading.Thread(target=apply, args=(version_id,)) for version_id in (v1, v2)]
+    for thread in threads: thread.start()
+    for thread in threads: thread.join()
+    row = get_conn().execute("SELECT version_id, is_override FROM authoritative WHERE document_id='doc-x'").fetchone()
+    assert not errors
+    assert row and row["is_override"] == 1 and row["version_id"] in {v1, v2}

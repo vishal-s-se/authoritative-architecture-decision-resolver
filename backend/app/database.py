@@ -12,14 +12,23 @@ DB_PATH = os.environ.get("ADR_DB_PATH", os.path.join(os.path.dirname(__file__), 
 DB_PATH = os.path.abspath(DB_PATH)
 
 _local = threading.local()
+_connections = set()
+_connections_lock = threading.Lock()
 
 
 def get_conn():
+    if hasattr(_local, "conn"):
+        try:
+            _local.conn.execute("SELECT 1")
+        except sqlite3.ProgrammingError:
+            del _local.conn
     if not hasattr(_local, "conn"):
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         _local.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         _local.conn.row_factory = sqlite3.Row
         _local.conn.execute("PRAGMA foreign_keys = ON")
+        with _connections_lock:
+            _connections.add(_local.conn)
     return _local.conn
 
 
@@ -177,8 +186,13 @@ def init_db():
 
 
 def reset_db():
-    conn = get_conn()
-    conn.close()
+    with _connections_lock:
+        connections = list(_connections)
+        _connections.clear()
+    for conn in connections:
+        conn.close()
+    if hasattr(_local, "conn"):
+        del _local.conn
     if os.path.exists(DB_PATH):
         os.remove(DB_PATH)
     if hasattr(_local, "conn"):

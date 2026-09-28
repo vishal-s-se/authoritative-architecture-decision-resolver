@@ -121,7 +121,7 @@ def answer_question(question, authoritative_version, document_title):
 
     citations = json.loads(authoritative_version.get("citations_json") or "[]")
     citation = citations[0] if citations else {
-        "section": "N/A", "page": "N/A", "chunk_id": authoritative_version["id"]
+        "section": "N/A", "page": "N/A", "chunk_id": authoritative_version.get("id", "unknown-version")
     }
     return {
         "answer": result["answer"],
