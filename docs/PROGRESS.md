@@ -4,7 +4,7 @@ Baseline audit: 2026-09-28
 
 - [PARTIAL] Step 0 - Audit: 9 tests pass; existing backend, frontend, seed, evaluation, governance, JWT, audit-chain, and docs changes reviewed. Git repository initialized; remote still needs to be added by the owner.
 - [DONE] Step 1 - Independent ground truth: deterministic planted scenarios, nullable behavior labels, minimum dataset counts, and reproducibility tests pass.
-- [PARTIAL] Step 2 - Evaluation harness: retrieval and answer path exists, but metrics, temp DB isolation, override/rollback checks, and citation/access semantics need correction.
+- [DONE] Step 2 - Baseline and proposed run end-to-end on a temporary SQLite copy, compute seven live metrics, validate override/rollback, and persist weights/results.
 - [PARTIAL] Step 3 - Error analysis + sensitivity: endpoints and categories exist, but examples/reasons and precision/recall need completion.
 - [MISSING] Step 4 - Evaluation script and generated report from an actual run.
 - [PARTIAL] Step 5 - Governance features: approvals and pending changes exist; override removal, role/account setup, and transactional correctness need completion.

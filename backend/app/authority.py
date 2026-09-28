@@ -137,7 +137,7 @@ def score_version(version, cfg=None, all_versions=None):
     return round(total * 100, 2), breakdown, status
 
 
-def resolve_authority(document_id, user=None, persist=True):
+def resolve_authority(document_id, user=None, persist=True, cfg=None):
     """
     Deterministically pick the authoritative version for a document.
     Returns dict with version, score, breakdown, conflict flag, and whether
@@ -145,7 +145,7 @@ def resolve_authority(document_id, user=None, persist=True):
     explicitly cleared).
     """
     conn = get_conn()
-    cfg = load_config()
+    cfg = cfg or load_config()
     versions = get_versions_for_document(document_id)
     if not versions:
         return None
