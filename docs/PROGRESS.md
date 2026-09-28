@@ -11,7 +11,7 @@ Baseline audit: 2026-09-28
 - [DONE] Step 6 - Section-heading chunking persists real section/page/chunk metadata; citation lookup is exact and permission-checked.
 - [DONE] Step 7 - SHA-256 audit chaining, safe hash-column migration, verification endpoint, and tamper tests pass.
 - [DONE] Step 8 - Expiring JWTs, login-failure auditing/rate limiting, expanded injection patterns, upload limits, safe filenames, and magic-byte checks are implemented.
-- [PARTIAL] Step 9 - Evaluation page now renders live seven-metric comparison, scenario SVG chart, expandable error examples, sensitivity results, loading state, and escaped API values. Approvals, pending changes, conflict controls, citations modal, and full feedback form remain.
+- [PARTIAL] Step 9 - Evaluation, approvals, and pending-change pages are wired with escaped API rendering and real endpoints. Conflict controls, citation modal, complete feedback form, and broader escaping remain.
 - [MISSING] Step 10 - Expanded TestClient suite; current suite has 9 tests.
 - [PARTIAL] Step 11 - Architecture and stakeholder docs exist; README and generated evaluation report need completion.
 

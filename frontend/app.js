@@ -253,7 +253,7 @@ function route(page) {
   const renderers = {
     dashboard: renderDashboard, ask: renderAsk, documents: renderDocuments,
     resolver: renderResolver, approvals: renderApprovals, override: renderOverride,
-    audit: renderAudit, eval: renderEval, settings: renderSettings,
+    pending: renderPendingChanges, audit: renderAudit, eval: renderEval, settings: renderSettings,
   };
   (renderers[page] || renderDashboard)();
 }
@@ -467,22 +467,45 @@ async function loadResolver(docId) {
 
 // ------------------------------------------------------------- APPROVALS
 async function renderApprovals() {
-  $main.innerHTML = `<h1>Approvals</h1><div class="subtitle">Approval records across all documents. Conflicting decisions are flagged in the resolver.</div>
+  $main.innerHTML = `<h1>Approvals</h1><div class="subtitle">Add or revoke approval decisions with an auditable reason.</div>
   <label>Select Document</label><select id="apDocSelect"></select>
   <div id="apArea" style="margin-top:14px"></div>`;
   const docs = await api("/api/documents");
-  document.getElementById("apDocSelect").innerHTML = docs.map(d => `<option value="${d.id}">${d.title}</option>`).join("");
+  document.getElementById("apDocSelect").innerHTML = docs.map(d => `<option value="${escapeHTML(d.id)}">${escapeHTML(d.title)}</option>`).join("");
   document.getElementById("apDocSelect").addEventListener("change", (e) => loadApprovals(e.target.value));
   if (docs.length) loadApprovals(docs[0].id);
 }
 async function loadApprovals(docId) {
   const detail = await api(`/api/documents/${docId}`);
   document.getElementById("apArea").innerHTML = detail.versions.map(v => `
-    <div class="panel"><h3>v${v.version_number} — ${statusBadge(v.status)}</h3>
+    <div class="panel"><h3>v${escapeHTML(v.version_number)} — ${statusBadge(escapeHTML(v.status))}</h3>
     ${v.approvals.length ? `<table><thead><tr><th>Approver</th><th>Decision</th><th>Date</th><th>Reason</th></tr></thead><tbody>
-      ${v.approvals.map(a=>`<tr><td>${a.approver_name}</td><td>${statusBadge(a.decision)}</td><td class="mono">${a.date.slice(0,10)}</td><td>${a.reason||"-"}</td></tr>`).join("")}
+      ${v.approvals.map(a=>`<tr><td>${escapeHTML(a.approver_name)}</td><td>${statusBadge(escapeHTML(a.decision))}</td><td class="mono">${escapeHTML((a.date||"").slice(0,10))}</td><td>${escapeHTML(a.reason||"-")} <button class="secondary revoke-approval" data-id="${escapeHTML(a.id)}">Revoke</button></td></tr>`).join("")}
     </tbody></table>` : "<p class='subtitle'>No approval records.</p>"}
+    <form class="approval-form" data-version="${escapeHTML(v.id)}"><select name="decision"><option>APPROVED</option><option>REJECTED</option><option>PENDING_REVIEW</option></select><input name="reason" required minlength="5" placeholder="Reason"/><button type="submit">Add decision</button></form>
     </div>`).join("");
+  document.querySelectorAll(".approval-form").forEach((form) => form.addEventListener("submit", async (event) => {
+    event.preventDefault(); const data = new FormData(form);
+    try { await api("/api/approvals", { method: "POST", body: JSON.stringify({ version_id: form.dataset.version, decision: data.get("decision"), reason: data.get("reason") }) }); toast("Approval added."); loadApprovals(docId); }
+    catch (error) { toast(`Error: ${error.message}`); }
+  }));
+  document.querySelectorAll(".revoke-approval").forEach((button) => button.addEventListener("click", async () => {
+    const reason = prompt("Reason for revocation:"); if (!reason) return;
+    try { await api(`/api/approvals/${button.dataset.id}/revoke`, { method: "POST", body: JSON.stringify({ reason }) }); toast("Approval revoked."); loadApprovals(docId); }
+    catch (error) { toast(`Error: ${error.message}`); }
+  }));
+}
+
+async function renderPendingChanges() {
+  $main.innerHTML = `<h1>Pending Changes</h1><div class="subtitle">A different administrator must review each override or rollback request.</div><div id="pendingArea">Loading…</div>`;
+  try {
+    const changes = await api("/api/pending-changes");
+    document.getElementById("pendingArea").innerHTML = changes.length ? `<table><thead><tr><th>Action</th><th>Document</th><th>Requested By</th><th>Reason</th><th>Review</th></tr></thead><tbody>${changes.map(change => `<tr><td>${escapeHTML(change.action)}</td><td>${escapeHTML(change.document_id)}</td><td>${escapeHTML(change.requested_by)}</td><td>${escapeHTML(change.reason)}</td><td><button class="approve-change" data-id="${escapeHTML(change.id)}" data-decision="APPROVE">Approve</button> <button class="secondary approve-change" data-id="${escapeHTML(change.id)}" data-decision="REJECT">Reject</button></td></tr>`).join("")}</tbody></table>` : "<p class='subtitle'>No pending changes.</p>";
+    document.querySelectorAll(".approve-change").forEach(button => button.addEventListener("click", async () => {
+      try { await api(`/api/pending-changes/${button.dataset.id}/review`, { method: "POST", body: JSON.stringify({ decision: button.dataset.decision }) }); toast("Change reviewed."); renderPendingChanges(); }
+      catch (error) { toast(`Error: ${error.message}`); }
+    }));
+  } catch (error) { document.getElementById("pendingArea").textContent = error.message; }
 }
 
 // -------------------------------------------------------------- OVERRIDE
