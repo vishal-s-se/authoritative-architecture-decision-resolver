@@ -25,6 +25,14 @@ SCENARIOS = {
     "clean_control",
 }
 
+HARDER_SCENARIOS = {
+    "older_board_vs_newer_developer",
+    "equal_recency_approver_authority",
+    "ancient_vs_new_conflicting_rejection",
+    "revoked_newest_approval",
+    "override_removed_reresolved",
+}
+
 
 def setup_module(_):
     reset_db()
@@ -75,3 +83,17 @@ def test_each_scenario_type_has_a_passing_ground_truth_row(scenario_type):
     row = conn.execute("SELECT * FROM eval_queries WHERE scenario_type=? LIMIT 1", (scenario_type,)).fetchone()
     assert row is not None
     assert row["expected_behavior"] in {"SELECT", "FLAG_CONFLICT", "DENY", "AMBIGUOUS"}
+
+
+@pytest.mark.parametrize("scenario_type", sorted(HARDER_SCENARIOS))
+def test_harder_scenario_ground_truth_is_not_newest_approved(scenario_type):
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM eval_queries WHERE scenario_type=?", (scenario_type,)).fetchall()
+    assert rows
+    for row in rows:
+        if row["expected_behavior"] == "SELECT":
+            newest = conn.execute(
+                "SELECT id FROM versions WHERE document_id=? ORDER BY version_number DESC LIMIT 1",
+                (row["expected_document_id"],),
+            ).fetchone()
+            assert row["expected_version_id"] != newest["id"]

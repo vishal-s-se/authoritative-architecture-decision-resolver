@@ -219,6 +219,48 @@ def _plant_eval_scenarios(conn, owner_ids):
         (1, "APPROVED", board, "The older mechanism is mechanism-18.", "2026-01-01T00:00:00+00:00"),
         (2, "APPROVED", board, "The newest mechanism is mechanism-19.", "2026-02-01T00:00:00+00:00"),
     ], 1)
+
+    # Harder cases deliberately separate governance authority from version recency.
+    add_fixture("older_board_vs_newer_developer", "Older board approval versus newer developer", [
+        (1, "APPROVED", board, "The board-approved mechanism is mechanism-20.", "2025-01-01T00:00:00+00:00"),
+        (2, "APPROVED", developer, "The developer-approved mechanism is mechanism-21.", "2026-01-01T00:00:00+00:00"),
+    ], 0)
+    add_fixture("equal_recency_approver_authority", "Equal recency approver authority", [
+        (1, "APPROVED", security, "The higher approver mechanism is mechanism-22.", "2025-06-01T00:00:00+00:00"),
+        (2, "APPROVED", developer, "The lower approver mechanism is mechanism-23.", "2025-06-01T00:00:00+00:00"),
+    ], 0)
+    conflict_old_doc, conflict_old_versions = add_fixture("ancient_vs_new_conflicting_rejection", "Ancient approval versus conflicting rejection", [
+        (1, "APPROVED", board, "The ancient approved mechanism is mechanism-24.", "2020-01-01T00:00:00+00:00"),
+        (2, "APPROVED", developer, "The newer conflicted mechanism is mechanism-25.", "2026-01-01T00:00:00+00:00"),
+    ], None, "FLAG_CONFLICT")
+    conn.execute("INSERT INTO approvals (version_id, approver_owner_id, decision, date, reason) VALUES (?,?,?,?,?)",
+                 (conflict_old_versions[1], board, "APPROVED", "2026-01-01T00:00:00+00:00", "harder planted approval"))
+    conn.execute("INSERT INTO approvals (version_id, approver_owner_id, decision, date, reason) VALUES (?,?,?,?,?)",
+                 (conflict_old_versions[1], developer, "REJECTED", "2026-01-02T00:00:00+00:00", "harder planted rejection"))
+    revoked_doc, revoked_versions = add_fixture("revoked_newest_approval", "Revoked newest approval", [
+        (1, "APPROVED", board, "The retained mechanism is mechanism-26.", "2025-01-01T00:00:00+00:00"),
+        (2, "APPROVED", developer, "The revoked newest mechanism is mechanism-27.", "2026-01-01T00:00:00+00:00"),
+    ], 0)
+    conn.execute("INSERT INTO approvals (version_id, approver_owner_id, decision, date, reason) VALUES (?,?,?,?,?)",
+                 (revoked_versions[1], developer, "APPROVED", "2026-01-01T00:00:00+00:00", "approval later revoked"))
+    conn.execute("DELETE FROM approvals WHERE version_id=?", (revoked_versions[1],))
+    override_removed_doc, override_removed_versions = add_fixture("override_removed_reresolved", "Override removed and re-resolved", [
+        (1, "APPROVED", board, "The automatic mechanism is mechanism-28.", "2025-01-01T00:00:00+00:00"),
+        (2, "APPROVED", developer, "The temporary override mechanism is mechanism-29.", "2026-01-01T00:00:00+00:00"),
+    ], 0)
+    conn.execute(
+        """INSERT INTO authoritative
+           (document_id, version_id, score, breakdown_json, is_override,
+            override_reason, override_by, previous_version_id, previous_score, updated_at)
+           VALUES (?,?,0,'{}',1,?,?,NULL,NULL,?)""",
+        (override_removed_doc, override_removed_versions[1], "temporary planted override", "admin", "2026-01-01T00:00:00+00:00"),
+    )
+    conn.execute("DELETE FROM authoritative WHERE document_id=?", (override_removed_doc,))
+    for index in range(7):
+        add_fixture("older_board_vs_newer_developer", f"Older board versus developer variant {index + 1}", [
+            (1, "APPROVED", board, f"The board mechanism is mechanism-{30 + index * 2}.", "2025-01-01T00:00:00+00:00"),
+            (2, "APPROVED", developer, f"The newer developer mechanism is mechanism-{31 + index * 2}.", "2026-01-01T00:00:00+00:00"),
+        ], 0)
     return scenarios
 
 
