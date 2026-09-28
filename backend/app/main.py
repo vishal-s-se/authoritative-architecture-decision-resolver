@@ -509,7 +509,10 @@ def admin_seed(user=Depends(require_admin)):
 def eval_run(mode: str, user=Depends(current_user)):
     if mode not in ("baseline", "proposed"):
         raise HTTPException(400, "mode must be 'baseline' or 'proposed'")
-    return run_evaluation(mode)
+    result = run_evaluation(mode)
+    log_event(user["username"], "EVAL_RUN", reason=f"Evaluation mode: {mode}",
+              metadata={"run_id": result.get("run_id"), "mode": mode})
+    return result
 
 
 @app.get("/api/eval/results")
@@ -554,6 +557,10 @@ def submit_feedback(body: FeedbackRequest):
             body.increased_trust, body.would_use, body.comment, datetime.now(timezone.utc).isoformat()),
     )
     conn.commit()
+    log_event("anonymous", "FEEDBACK_SUBMITTED", reason=body.query,
+              metadata={"answer_clear": body.answer_clear, "source_clear": body.source_clear,
+                        "citation_useful": body.citation_useful, "increased_trust": body.increased_trust,
+                        "would_use": body.would_use})
     return {"ok": True}
 
 
