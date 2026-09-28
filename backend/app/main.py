@@ -450,9 +450,13 @@ def citation(version_id: str, chunk_id: str, user=Depends(current_user)):
         raise HTTPException(404, "version not found")
     if not check_access_or_log(version["document_id"], user["role"], user["username"], "VIEW_CITATION"):
         raise HTTPException(403, "access denied")
-    chunks = [part.strip() for part in version["content"].replace("Section ", "\nSection ").splitlines() if part.strip()]
-    source = next((part for part in chunks if chunk_id in part or part.startswith("Section")), version["content"])
-    return {"version_id": version_id, "chunk_id": chunk_id, "source_text": source}
+    chunk = conn.execute(
+        "SELECT chunk_id, section, page, source_text FROM version_chunks WHERE version_id=? AND chunk_id=?",
+        (version_id, chunk_id),
+    ).fetchone()
+    if not chunk:
+        raise HTTPException(404, "citation chunk not found")
+    return dict(chunk)
 
 
 # ------------------------------------------------------------- SETTINGS ---

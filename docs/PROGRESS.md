@@ -8,7 +8,7 @@ Baseline audit: 2026-09-28
 - [DONE] Step 3 - Error analysis returns exactly one category with concrete examples/reasons; sensitivity returns real metric bundles for default, recency-heavy, and approval-only weights.
 - [DONE] Step 4 - `scripts/run_evaluation.py` generates the report from real baseline/proposed, error-analysis, and sensitivity runs; the report contains the actual metric table.
 - [DONE] Step 5 - Approval/revocation, override removal, two-admin pending change review, startup admin2 provisioning, and required audit events are implemented and validated.
-- [PARTIAL] Step 6 - Chunk-aware ingestion and real citations.
+- [DONE] Step 6 - Section-heading chunking persists real section/page/chunk metadata; citation lookup is exact and permission-checked.
 - [PARTIAL] Step 7 - Tamper-evident audit chain exists; migration and verification coverage need completion.
 - [PARTIAL] Step 8 - JWT, rate limiting, and injection patterns exist; upload magic-byte and filename checks remain.
 - [MISSING] Step 9 - Frontend requirements are largely incomplete, including escaping and review/evaluation workflows.

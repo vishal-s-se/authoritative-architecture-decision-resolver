@@ -57,6 +57,15 @@ CREATE TABLE IF NOT EXISTS versions (
     citations_json TEXT
 );
 
+CREATE TABLE IF NOT EXISTS version_chunks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version_id TEXT NOT NULL REFERENCES versions(id),
+    chunk_id TEXT NOT NULL UNIQUE,
+    section TEXT,
+    page INTEGER,
+    source_text TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS approvals (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     version_id TEXT NOT NULL REFERENCES versions(id),
