@@ -225,7 +225,7 @@ if ($closeAiChat) {
 
 function renderQuickQuestions(optionsArea, answerArea) {
   optionsArea.innerHTML = QUICK_QUESTIONS.map((item, index) =>
-    `<button class="question-option" type="button" data-question-index="${index}">${item.label}</button>`
+     `<button class="question-option" type="button" data-question-index="${escapeHTML(index)}">${escapeHTML(item.label)}</button>`
   ).join("");
   optionsArea.querySelectorAll(".question-option").forEach((button) => {
     button.addEventListener("click", () => askQuestion(QUICK_QUESTIONS[button.dataset.questionIndex].question, answerArea, optionsArea));
@@ -237,11 +237,11 @@ async function askQuestion(q, answerArea, optionsArea) {
   answerArea.innerHTML = `<div class="message bot">Resolving the authoritative source…</div>`;
   try {
     const r = await api("/api/ask", { method: "POST", body: JSON.stringify({ question: q }) });
-    answerArea.innerHTML = r.access_denied
-      ? `<div class="message bot">${r.answer}</div>`
+      answerArea.innerHTML = r.access_denied
+        ? `<div class="message bot">${escapeHTML(r.answer)}</div>`
       : renderAskResult(r);
   } catch (error) {
-    answerArea.innerHTML = `<div class="message bot">I could not resolve that option right now.<br><br>Error: ${error.message}</div>`;
+    answerArea.innerHTML = `<div class="message bot">I could not resolve that option right now.<br><br>Error: ${escapeHTML(error.message)}</div>`;
   } finally {
     optionsArea.querySelectorAll("button").forEach((button) => { button.disabled = false; });
   }
@@ -280,11 +280,11 @@ async function renderDashboard() {
   $main.innerHTML = `<h1>Dashboard</h1><div class="subtitle">Organization-wide authority &amp; audit posture</div><div id="kpis" class="grid"></div>
   <div class="panel">
     <h3>What this page is for</h3>
-    <p class="subtitle" style="margin-top:-6px; margin-bottom:10px;">${guide.summary}</p>
+    <p class="subtitle" style="margin-top:-6px; margin-bottom:10px;">${escapeHTML(guide.summary)}</p>
     <ul>
-      ${guide.points.map((point) => `<li>${point}</li>`).join("")}
+        ${guide.points.map((point) => `<li>${escapeHTML(point)}</li>`).join("")}
     </ul>
-    <div class="override-banner" style="margin-bottom:0;">CIA lens: ${guide.cia}</div>
+    <div class="override-banner" style="margin-bottom:0;">CIA lens: ${escapeHTML(guide.cia)}</div>
   </div>
   <div class="panel"><h3>Recent Audit Events</h3><div id="recentAudit">Loading…</div></div>
   <div class="panel"><h3>Dataset Controls</h3>
@@ -305,7 +305,7 @@ async function renderDashboard() {
       ["Approved Versions", d.approved_versions], ["Draft Versions", d.draft_versions],
       ["Authoritative Docs", d.authoritative_documents], ["Manual Overrides", d.manual_overrides],
       ["Authority Conflicts", d.authority_conflicts],
-    ].map(([label, v]) => `<div class="card"><div class="kpi">${v}</div><div class="label">${label}</div></div>`).join("");
+    ].map(([label, v]) => `<div class="card"><div class="kpi">${escapeHTML(v)}</div><div class="label">${escapeHTML(label)}</div></div>`).join("");
     document.getElementById("recentAudit").innerHTML = renderAuditTable(d.recent_audit_events);
   } catch (e) {
     document.getElementById("kpis").innerHTML = `<div class="card"><div class="label">No data yet — click "Regenerate Synthetic Dataset" below.</div></div>`;
@@ -328,7 +328,7 @@ async function renderAsk() {
 
 function renderAskResult(r) {
     if (!r.document_title) {
-      return `<div class="message bot">${r.answer || "No relevant authoritative document was found."}</div>`;
+  return `<div class="message bot">${escapeHTML(r.answer || "No relevant authoritative document was found.")}</div>`;
     }
     let banner = "";
     if (r.conflict) banner += `<div class="conflict-banner">AUTHORITY CONFLICT — Conflicting approval records detected for this version. Manual review required.</div>`;
@@ -384,11 +384,11 @@ async function renderDocuments() {
   $main.innerHTML = `<h1>Documents</h1><div class="subtitle">All architecture decision documents and their version counts.</div>
   <div class="panel">
     <h3>How this page helps your role</h3>
-    <p class="subtitle" style="margin-top:-6px; margin-bottom:10px;">${guide.summary}</p>
+    <p class="subtitle" style="margin-top:-6px; margin-bottom:10px;">${escapeHTML(guide.summary)}</p>
     <ul>
-      ${guide.points.map((point) => `<li>${point}</li>`).join("")}
+      ${guide.points.map((point) => `<li>${escapeHTML(point)}</li>`).join("")}
     </ul>
-    <div class="override-banner" style="margin-bottom:0;">CIA lens: ${guide.cia}</div>
+    <div class="override-banner" style="margin-bottom:0;">CIA lens: ${escapeHTML(guide.cia)}</div>
   </div>
   <div id="docTable">Loading…</div>
   <div class="panel"><h3>Upload New Version</h3>
@@ -403,7 +403,7 @@ async function renderDocuments() {
     </form>
   </div>`;
   const owners = await api("/api/owners");
-  document.getElementById("ownerSelect").innerHTML = owners.map(o => `<option value="${o.id}">${o.name} (${o.authority_level})</option>`).join("");
+  document.getElementById("ownerSelect").innerHTML = owners.map(o => `<option value="${escapeHTML(o.id)}">${escapeHTML(o.name)} (${escapeHTML(o.authority_level)})</option>`).join("");
   const docs = await api("/api/documents");
   document.getElementById("docTable").innerHTML = `<table><thead><tr><th>Title</th><th>ID</th><th>Versions</th><th>Authoritative Version</th><th>Access</th></tr></thead><tbody>
     ${docs.map(d => `<tr data-doc-id="${escapeHTML(d.id)}" class="doc-row" style="cursor:pointer"><td>${escapeHTML(d.title)}</td><td class="mono">${escapeHTML(d.id)}</td><td>${escapeHTML(d.version_count)}</td><td class="mono">${escapeHTML(d.authoritative_version || "-")} ${d.is_override ? "override" : ""}</td><td>${d.accessible ? "allowed" : "denied"}</td></tr>`).join("")}
@@ -434,7 +434,7 @@ async function renderResolver(preselectDoc) {
   <div id="resolverResult" style="margin-top:16px"></div>`;
   const docs = await api("/api/documents");
   const sel = document.getElementById("docSelect");
-  sel.innerHTML = docs.map(d => `<option value="${d.id}">${d.title} (${d.id})</option>`).join("");
+  sel.innerHTML = docs.map(d => `<option value="${escapeHTML(d.id)}">${escapeHTML(d.title)} (${escapeHTML(d.id)})</option>`).join("");
   if (preselectDoc) sel.value = preselectDoc;
   sel.addEventListener("change", () => loadResolver(sel.value));
   if (docs.length) loadResolver(sel.value);
@@ -452,7 +452,7 @@ async function loadResolver(docId) {
         ? "⚠ AUTHORITY CONFLICT — Automatic authority resolution is suspended. Review approvals before selecting a source."
         : "NO APPROVED VERSION — No version is eligible for automatic authority resolution.";
       area.innerHTML = `<div class="conflict-banner">${escapeHTML(message)} ${proposed.conflict ? `<button id="reviewConflict">Review</button><button id="resolveConflict">Resolve</button>` : ""}</div>
-        <div class="panel"><h3>Baseline</h3><div class="row"><span>Newest version</span><span>v${baseline.version.version_number} (${baseline.version.status})</span></div></div>`;
+        <div class="panel"><h3>Baseline</h3><div class="row"><span>Newest version</span><span>v${escapeHTML(baseline.version.version_number)} (${escapeHTML(baseline.version.status)})</span></div></div>`;
       const review = document.getElementById("reviewConflict");
       if (review) review.addEventListener("click", () => route("approvals"));
       const resolve = document.getElementById("resolveConflict");
@@ -465,22 +465,22 @@ async function loadResolver(docId) {
       ${proposed.conflict ? `<div class="panel"><button id="reviewConflict">Review</button><button id="overrideConflict">Override</button><button id="resolveConflict">Resolve</button></div>` : ""}
       <div class="metric-compare">
         <div class="col"><h4>BASELINE (newest wins)</h4>
-          <div class="row"><span>Version</span><span>v${baseline.version.version_number}</span></div>
-          <div class="row"><span>Status</span><span>${statusBadge(baseline.version.status)}</span></div>
-          <div class="row"><span>Modified</span><span class="mono">${baseline.version.modified_date.slice(0,10)}</span></div>
+          <div class="row"><span>Version</span><span>v${escapeHTML(baseline.version.version_number)}</span></div>
+          <div class="row"><span>Status</span><span>${statusBadge(escapeHTML(baseline.version.status))}</span></div>
+          <div class="row"><span>Modified</span><span class="mono">${escapeHTML(baseline.version.modified_date.slice(0,10))}</span></div>
         </div>
         <div class="col"><h4>PROPOSED (authority resolver)</h4>
-          <div class="row"><span>Version</span><span>v${proposed.version.version_number}</span></div>
-          <div class="row"><span>Status</span><span>${statusBadge(proposed.version.status)}</span></div>
-          <div class="row"><span>Authority Score</span><span class="score-big">${proposed.score}%</span></div>
+          <div class="row"><span>Version</span><span>v${escapeHTML(proposed.version.version_number)}</span></div>
+          <div class="row"><span>Status</span><span>${statusBadge(escapeHTML(proposed.version.status))}</span></div>
+          <div class="row"><span>Authority Score</span><span class="score-big">${escapeHTML(proposed.score)}%</span></div>
         </div>
       </div>
       <div class="panel" style="margin-top:16px"><h3>Score Breakdown (Proposed)</h3>
-        ${Object.entries(proposed.breakdown).map(([k,v]) => `<div class="breakdown-row"><span>${k} (weight ${(v.weight*100).toFixed(0)}%)</span><span>${v.points} / ${v.max}</span></div>`).join("")}
+        ${Object.entries(proposed.breakdown).map(([k,v]) => `<div class="breakdown-row"><span>${escapeHTML(k)} (weight ${escapeHTML((v.weight*100).toFixed(0))}%)</span><span>${escapeHTML(v.points)} / ${escapeHTML(v.max)}</span></div>`).join("")}
       </div>
       <div class="panel"><h3>All Versions</h3>
         <table><thead><tr><th>Version</th><th>Status</th><th>Owner</th><th>Modified</th><th>Approvals</th></tr></thead><tbody>
-        ${detail.versions.map(v => `<tr><td>v${v.version_number}${v.id===proposed.version.id?' ⭐':''}</td><td>${statusBadge(v.status)}</td><td>${v.owner_id}</td><td class="mono">${v.modified_date.slice(0,10)}</td><td>${v.approvals.map(a=>`${a.approver_name}:${a.decision}`).join(", ")||"-"}</td></tr>`).join("")}
+        ${detail.versions.map(v => `<tr><td>v${escapeHTML(v.version_number)}${v.id===proposed.version.id?' selected':''}</td><td>${statusBadge(escapeHTML(v.status))}</td><td>${escapeHTML(v.owner_id)}</td><td class="mono">${escapeHTML(v.modified_date.slice(0,10))}</td><td>${v.approvals.map(a=>`${escapeHTML(a.approver_name)}:${escapeHTML(a.decision)}`).join(", ")||"-"}</td></tr>`).join("")}
         </tbody></table>
       </div>`;
     const review = document.getElementById("reviewConflict");
@@ -489,7 +489,7 @@ async function loadResolver(docId) {
     if (resolve) resolve.addEventListener("click", () => route("approvals"));
     const overrideButton = document.getElementById("overrideConflict");
     if (overrideButton) overrideButton.addEventListener("click", () => route("override"));
-  } catch (e) { area.innerHTML = `<div class="conflict-banner">Error: ${e.message}</div>`; }
+  } catch (e) { area.innerHTML = `<div class="conflict-banner">Error: ${escapeHTML(e.message)}</div>`; }
 }
 
 // ------------------------------------------------------------- APPROVALS
@@ -545,7 +545,7 @@ async function renderOverride() {
   <label>Select Document</label><select id="ovDocSelect"></select>
   <div id="ovArea" style="margin-top:14px"></div>`;
   const docs = await api("/api/documents");
-  document.getElementById("ovDocSelect").innerHTML = docs.map(d => `<option value="${d.id}">${d.title}</option>`).join("");
+  document.getElementById("ovDocSelect").innerHTML = docs.map(d => `<option value="${escapeHTML(d.id)}">${escapeHTML(d.title)}</option>`).join("");
   document.getElementById("ovDocSelect").addEventListener("change", (e) => loadOverride(e.target.value));
   if (docs.length) loadOverride(docs[0].id);
 }
@@ -553,9 +553,9 @@ async function loadOverride(docId) {
   const [detail, current] = await Promise.all([api(`/api/documents/${docId}`), api(`/api/authority/${docId}`)]);
   const currentVersionId = current.version ? current.version.id : "";
   document.getElementById("ovArea").innerHTML = `
-    ${current.is_override && current.version ? `<div class="override-banner">MANUAL OVERRIDE ACTIVE on v${current.version.version_number} — ${current.override_reason}</div><button id="rollbackBtn" class="secondary">Rollback to Previous Authority</button>` : ""}
+    ${current.is_override && current.version ? `<div class="override-banner">MANUAL OVERRIDE ACTIVE on v${escapeHTML(current.version.version_number)} — ${escapeHTML(current.override_reason)}</div><button id="rollbackBtn" class="secondary">Rollback to Previous Authority</button>` : ""}
     <div class="panel"><h3>Choose Version to Make Authoritative</h3>
-      <select id="ovVersionSelect">${detail.versions.map(v => `<option value="${v.id}" ${v.id===currentVersionId?"selected":""}>v${v.version_number} — ${v.status}</option>`).join("")}</select>
+      <select id="ovVersionSelect">${detail.versions.map(v => `<option value="${escapeHTML(v.id)}" ${v.id===currentVersionId?"selected":""}>v${escapeHTML(v.version_number)} — ${escapeHTML(v.status)}</option>`).join("")}</select>
       <label>Reason (required)</label><textarea id="ovReason" rows="3" placeholder="Explain why this version should be authoritative..."></textarea>
       <div style="margin-top:12px"><button id="ovSubmit">Apply Override</button></div>
     </div>`;
@@ -567,7 +567,7 @@ async function loadOverride(docId) {
       });
       toast(overrideResult.warning || "Override applied.");
       loadOverride(docId);
-    } catch (e) { toast("Error: " + e.message); }
+    } catch (e) { toast("Error: " + escapeHTML(e.message)); }
   });
   const rb = document.getElementById("rollbackBtn");
   if (rb) rb.addEventListener("click", async () => {
@@ -650,17 +650,17 @@ async function renderSettings() {
   document.getElementById("settingsArea").innerHTML = `
     <div class="panel"><h3>Authority Score Weights</h3>
       ${Object.entries(cfg.weights).map(([k, v]) => `
-        <label>${k} (${(v*100).toFixed(0)}%)</label>
-        <input type="number" step="0.01" min="0" max="1" id="w_${k}" value="${v}" ${readonly ? "disabled" : ""}/>
+        <label>${escapeHTML(k)} (${escapeHTML((v*100).toFixed(0))}%)</label>
+        <input type="number" step="0.01" min="0" max="1" id="w_${escapeHTML(k)}" value="${escapeHTML(v)}" ${readonly ? "disabled" : ""}/>
       `).join("")}
       <div style="margin-top:12px"><button id="saveWeights" ${readonly ? "disabled" : ""}>Save Weights</button></div>
     </div>
     <div class="panel"><h3>Status Scores</h3>
-      ${Object.entries(cfg.status_scores).map(([k, v]) => `<div class="breakdown-row"><span>${k}</span><span>${v}</span></div>`).join("")}
+      ${Object.entries(cfg.status_scores).map(([k, v]) => `<div class="breakdown-row"><span>${escapeHTML(k)}</span><span>${escapeHTML(v)}</span></div>`).join("")}
     </div>
     <div class="panel"><h3>AI Provider</h3>
-      <div class="breakdown-row"><span>Provider</span><span>${cfg.ai_provider}</span></div>
-      <div class="breakdown-row"><span>Model</span><span>${cfg.ai_model}</span></div>
+      <div class="breakdown-row"><span>Provider</span><span>${escapeHTML(cfg.ai_provider)}</span></div>
+      <div class="breakdown-row"><span>Model</span><span>${escapeHTML(cfg.ai_model)}</span></div>
       <p class="subtitle">Set ADR_LLM_API_KEY env var to switch from the offline mock provider to a live LLM.</p>
     </div>`;
   if (!readonly) {
