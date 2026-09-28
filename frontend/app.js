@@ -118,6 +118,12 @@ async function api(path, opts = {}) {
   return res.headers.get("content-type")?.includes("json") ? res.json() : res.text();
 }
 
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[character]));
+}
+
 async function login(username, passwordOverride) {
   const password = passwordOverride ?? DEMO_PASSWORDS[username];
   const data = await api("/api/auth/login", {
@@ -529,39 +535,61 @@ async function renderAudit() {
 
 // ------------------------------------------------------------------ EVAL
 async function renderEval() {
-  $main.innerHTML = `<h1>Test / Evaluation</h1><div class="subtitle">Runs the ground-truth query set through both resolvers and computes real metrics — nothing is hardcoded.</div>
-  <div class="pill-row"><button id="runBaseline">Run Baseline</button><button id="runProposed">Run Proposed</button></div>
-  <div id="evalResults" style="margin-top:16px"></div>
+  $main.innerHTML = `<h1>Evaluation</h1><div class="subtitle">Live baseline versus deterministic proposed authority results.</div>
+  <div class="pill-row"><button id="runEvaluation">Run Evaluation</button><span id="evalStatus" class="subtitle"></span></div>
+  <div id="evalResults" style="margin-top:16px"></div><div id="scenarioChart" class="panel"></div>
+  <div id="errorAnalysis" class="panel"></div><div id="sensitivity" class="panel"></div>
   <div class="panel"><h3>Stakeholder Feedback Summary</h3><div id="fbSummary">Loading…</div></div>`;
-  document.getElementById("runBaseline").addEventListener("click", () => runEval("baseline"));
-  document.getElementById("runProposed").addEventListener("click", () => runEval("proposed"));
+  document.getElementById("runEvaluation").addEventListener("click", runEval);
   loadEvalHistory();
   const fb = await api("/api/feedback/summary");
   document.getElementById("fbSummary").innerHTML = fb.count ? `
-    <div class="row breakdown-row"><span>Responses</span><span>${fb.count}</span></div>
-    <div class="row breakdown-row"><span>Answer Clear</span><span>${fb.answer_clear_pct}%</span></div>
-    <div class="row breakdown-row"><span>Source Clear</span><span>${fb.source_clear_pct}%</span></div>
-    <div class="row breakdown-row"><span>Citation Useful</span><span>${fb.citation_useful_pct}%</span></div>
-    <div class="row breakdown-row"><span>Increased Trust</span><span>${fb.increased_trust_pct}%</span></div>
-    <div class="row breakdown-row"><span>Would Use</span><span>${fb.would_use_pct}%</span></div>
+    ${[["Responses", fb.count], ["Answer Clear", fb.answer_clear_average], ["Source Clear", fb.source_clear_average],
+      ["Citation Useful", fb.citation_useful_average], ["Increased Trust", fb.increased_trust_average], ["Would Use", fb.would_use_average]]
+      .map(([label, value]) => `<div class="row breakdown-row"><span>${escapeHTML(label)}</span><span>${escapeHTML(value)} / 5</span></div>`).join("")}
   ` : "<p class='subtitle'>No feedback submitted yet — use the Ask AI page.</p>";
 }
-async function runEval(mode) {
+async function runEval() {
   const area = document.getElementById("evalResults");
-  area.innerHTML = "Running evaluation over ground-truth query set…";
+  const button = document.getElementById("runEvaluation");
+  button.disabled = true;
+  document.getElementById("evalStatus").textContent = "Running baseline and proposed evaluations…";
   try {
-    const r = await api(`/api/eval/run?mode=${mode}`, { method: "POST" });
-    toast(`${mode} run complete: ${r.authority_selection_accuracy}% accuracy`);
+    await api("/api/eval/run?mode=baseline", { method: "POST" });
+    await api("/api/eval/run?mode=proposed", { method: "POST" });
+    toast("Evaluation complete.");
     loadEvalHistory();
-  } catch (e) { area.innerHTML = `<div class="conflict-banner">${e.message}</div>`; }
+  } catch (e) { area.innerHTML = `<div class="conflict-banner">${escapeHTML(e.message)}</div>`; }
+  finally { button.disabled = false; document.getElementById("evalStatus").textContent = ""; }
 }
 async function loadEvalHistory() {
   const results = await api("/api/eval/results");
   const area = document.getElementById("evalResults");
   if (!results.length) { area.innerHTML = "<p class='subtitle'>No evaluation runs yet.</p>"; return; }
-  area.innerHTML = `<table><thead><tr><th>Run</th><th>Mode</th><th>Authority Acc.</th><th>Answer Acc.</th><th>Citation Acc.</th><th>Access Acc.</th><th>Conflict Det.</th><th>Errors</th></tr></thead><tbody>
-    ${results.map(r => `<tr><td class="mono">${r.run_id}</td><td>${r.mode}</td><td>${r.authority_selection_accuracy}%</td><td>${r.answer_accuracy ?? "n/a"}%</td><td>${r.citation_accuracy}%</td><td>${r.access_control_accuracy}%</td><td>${r.conflict_detection_accuracy ?? "n/a"}</td><td>${r.error_count}</td></tr>`).join("")}
+  const latest = Object.fromEntries(results.map((result) => [result.mode, result]));
+  const metrics = [["Authority Selection", "authority_selection_accuracy"], ["Answer", "answer_accuracy"], ["Citation", "citation_accuracy"],
+    ["Access Control", "access_control_accuracy"], ["Conflict Detection", "conflict_detection_accuracy"], ["Manual Override", "manual_override_success"], ["Rollback", "rollback_success"]];
+  area.innerHTML = `<table><thead><tr><th>Metric</th><th>Baseline</th><th>Proposed</th></tr></thead><tbody>
+    ${metrics.map(([label, key]) => `<tr><td>${escapeHTML(label)}</td><td>${escapeHTML(latest.baseline?.[key] ?? "n/a")}%</td><td>${escapeHTML(latest.proposed?.[key] ?? "n/a")}%</td></tr>`).join("")}
   </tbody></table>`;
+  renderScenarioChart(latest.proposed?.scenario_metrics || {});
+  const analysis = await api("/api/eval/error-analysis");
+  document.getElementById("errorAnalysis").innerHTML = `<h3>Error Analysis</h3><table><thead><tr><th>Category</th><th>Count</th><th>Examples</th></tr></thead><tbody>
+    ${Object.entries(analysis.counts || {}).map(([category, count]) => `<tr><td>${escapeHTML(category)}</td><td>${escapeHTML(count)}</td><td><details><summary>View</summary>${(analysis.examples[category] || []).map((example) => `<p><b>${escapeHTML(example.query)}</b><br>Expected: ${escapeHTML(JSON.stringify(example.expected))}<br>Got: ${escapeHTML(JSON.stringify(example.got))}<br>${escapeHTML(example.reason)}</p>`).join("")}</details></td></tr>`).join("")}
+  </tbody></table>`;
+  try {
+    const sensitivity = await api("/api/eval/sensitivity");
+    document.getElementById("sensitivity").innerHTML = `<h3>Weight Sensitivity</h3><table><thead><tr><th>Weights</th><th>Authority</th><th>Answer</th><th>Conflict</th></tr></thead><tbody>
+      ${Object.entries(sensitivity).map(([name, value]) => `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(value.authority_selection_accuracy)}%</td><td>${escapeHTML(value.answer_accuracy)}%</td><td>${escapeHTML(value.conflict_detection_accuracy)}%</td></tr>`).join("")}
+    </tbody></table>`;
+  } catch (error) { document.getElementById("sensitivity").textContent = escapeHTML(error.message); }
+}
+
+function renderScenarioChart(scenarios) {
+  const entries = Object.entries(scenarios);
+  document.getElementById("scenarioChart").innerHTML = `<h3>Proposed Accuracy by Scenario</h3><svg viewBox="0 0 760 ${Math.max(160, entries.length * 32)}" role="img" aria-label="Scenario accuracy chart">
+    ${entries.map(([name, value], index) => { const accuracy = Number(value.authority_selection_accuracy || 0); const y = index * 32 + 20; return `<text x="0" y="${y}" font-size="11">${escapeHTML(name)}</text><rect x="220" y="${y - 12}" width="${accuracy * 5}" height="18" fill="#2c7a7b"><title>${escapeHTML(accuracy)}%</title></rect><text x="${230 + accuracy * 5}" y="${y}" font-size="11">${escapeHTML(accuracy)}%</text>`; }).join("")}
+  </svg>`;
 }
 
 // -------------------------------------------------------------- SETTINGS
