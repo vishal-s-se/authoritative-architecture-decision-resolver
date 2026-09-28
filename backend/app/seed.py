@@ -126,8 +126,9 @@ def _plant_eval_scenarios(conn, owner_ids):
             conn.execute("INSERT INTO access_rules (document_id, role, allowed) VALUES (?,?,1)", (doc_id, "VIEWER"))
         for role in ("ENGINEER", "ARCHITECT"):
             conn.execute("INSERT INTO access_rules (document_id, role, allowed) VALUES (?,?,1)", (doc_id, role))
-        expected_id = version_ids[expected_index] if expected_index is not None else None
+        expected_id = version_ids[expected_index] if expected_index is not None and behavior == "SELECT" else None
         expected_version = versions[expected_index][0] if expected_index is not None else None
+        expected_content = versions[expected_index][3] if expected_index is not None else ""
         if scenario_type == "manual_override_active" and expected_id:
             conn.execute(
                 """INSERT OR REPLACE INTO authoritative
@@ -138,11 +139,11 @@ def _plant_eval_scenarios(conn, owner_ids):
             )
         scenarios.append({
             "label": label,
-            "document_id": doc_id if behavior != "AMBIGUOUS" else None,
+            "document_id": doc_id if behavior == "SELECT" else None,
             "version_id": expected_id,
             "expected_answer": "Manual review required" if behavior == "FLAG_CONFLICT" else (
                 "Access denied" if behavior == "DENY" else (
-                    "Ambiguous result" if behavior == "AMBIGUOUS" else f"mechanism-{expected_version}")),
+                    "Ambiguous result" if behavior == "AMBIGUOUS" else expected_content.split(" is ", 1)[-1].rstrip("."))),
             "expected_citation": "MANUAL_REVIEW_REQUIRED" if behavior == "FLAG_CONFLICT" else (
                 "ACCESS_DENIED" if behavior == "DENY" else (
                     "AMBIGUOUS" if behavior == "AMBIGUOUS" else f"{doc_id}-v{expected_version}-c1")),
@@ -163,7 +164,7 @@ def _plant_eval_scenarios(conn, owner_ids):
         (1, "APPROVED", board, "The approved mechanism is mechanism-5.", "2026-01-01T00:00:00+00:00"),
         (2, "REJECTED", developer, "The rejected mechanism is mechanism-6.", "2026-02-01T00:00:00+00:00"),
     ], 0)
-    add_fixture("two_approved_different_owner_authority", "Two approved owner authorities", [
+    add_fixture("owner_authority_tiebreak", "Two approved owner authorities", [
         (1, "APPROVED", developer, "The lower authority mechanism is mechanism-7.", "2026-01-01T00:00:00+00:00"),
         (2, "APPROVED", security, "The higher authority mechanism is mechanism-8.", "2026-02-01T00:00:00+00:00"),
     ], 1)
@@ -180,25 +181,17 @@ def _plant_eval_scenarios(conn, owner_ids):
                  (conflict_versions[0], developer, "REJECTED", "2026-01-02T00:00:00+00:00", "planted conflict"))
     add_fixture("restricted_document_for_viewer", "Restricted document for viewer", [
         (1, "APPROVED", board, "The restricted mechanism is mechanism-12.", "2026-01-01T00:00:00+00:00"),
-    ], 0, restricted=True)
+    ], 0, "DENY", restricted=True)
     add_fixture("manual_override_active", "Manual override active", [
         (1, "APPROVED", board, "The automatic mechanism is mechanism-13.", "2026-01-01T00:00:00+00:00"),
         (2, "DRAFT", developer, "The override mechanism is mechanism-14.", "2026-02-01T00:00:00+00:00"),
     ], 1)
-    ambiguous_a, _ = add_fixture("ambiguous_query", "Ambiguous architecture source A", [
+    add_fixture("ambiguous_query", "Ambiguous architecture source A", [
         (1, "APPROVED", board, "The ambiguous mechanism is mechanism-15.", "2026-01-01T00:00:00+00:00"),
-    ], 0)
-    ambiguous_b, _ = add_fixture("ambiguous_query", "Ambiguous architecture source B", [
+    ], 0, "AMBIGUOUS")
+    add_fixture("ambiguous_query", "Ambiguous architecture source B", [
         (1, "APPROVED", board, "The ambiguous mechanism is mechanism-16.", "2026-01-01T00:00:00+00:00"),
-    ], 0)
-    scenarios[-2]["document_id"] = None
-    scenarios[-2]["version_id"] = None
-    scenarios[-2]["expected_answer"] = "Ambiguous result"
-    scenarios[-2]["expected_citation"] = "AMBIGUOUS"
-    scenarios[-1]["document_id"] = None
-    scenarios[-1]["version_id"] = None
-    scenarios[-1]["expected_answer"] = "Ambiguous result"
-    scenarios[-1]["expected_citation"] = "AMBIGUOUS"
+    ], 0, "AMBIGUOUS")
     add_fixture("missing_metadata", "Missing metadata", [
         (1, "APPROVED", None, "The metadata-free mechanism is mechanism-17.", "2026-01-01T00:00:00+00:00"),
     ], 0)
@@ -214,7 +207,7 @@ def _hash(text):
 
 
 def _rand_date(days_back_min, days_back_max):
-    now = datetime.now(timezone.utc)
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
     d = now - timedelta(days=random.randint(days_back_min, days_back_max))
     return d.isoformat()
 
@@ -243,7 +236,8 @@ def generate(num_documents=50, target_versions=200, target_approvals=100, num_ac
     i = 0
     while len(owners) < 30:
         prefix = EXTRA_OWNER_PREFIXES[i % len(EXTRA_OWNER_PREFIXES)]
-        owners.append((f"{prefix} Architecture Team", round(random.uniform(0.55, 0.88), 2)))
+        owners.append((f"{prefix} Architecture Team {i // len(EXTRA_OWNER_PREFIXES) + 1}",
+                       round(random.uniform(0.55, 0.88), 2)))
         i += 1
     owner_ids = {}
     for name, level in owners:
