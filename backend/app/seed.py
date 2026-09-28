@@ -415,21 +415,36 @@ def generate(num_documents=50, target_versions=200, target_approvals=100, num_ac
         "What mechanism does the {label} decision use?",
         "Which source answers the {label} architecture question?",
         "What is the approved approach in the {label} record?",
+        "How is {label} handled?",
+        "Detail the architecture for {label}.",
+        "Can you provide the {label} architecture decision?",
+        "Summarize the {label} mechanism."
     ]
     made = 0
-    while made < num_queries:
-        scenario = scenario_defs[made % len(scenario_defs)]
-        query = query_templates[made % len(query_templates)].format(label=scenario["label"])
-        conn.execute(
-            """INSERT INTO eval_queries
-               (query, expected_document_id, expected_version_id, expected_answer,
-                expected_citation, category, scenario_type, expected_behavior)
-               VALUES (?,?,?,?,?,?,?,?)""",
-            (query, scenario["document_id"], scenario["version_id"],
-             scenario["expected_answer"], scenario["expected_citation"],
-             scenario["scenario_type"], scenario["scenario_type"], scenario["expected_behavior"]),
-        )
-        made += 1
+    # Group scenarios by type
+    by_type = {}
+    for s in scenario_defs:
+        by_type.setdefault(s["scenario_type"], []).append(s)
+    
+    # We have 16 types, total ~100 queries -> ~6 queries per type
+    target_per_type = 100 // len(by_type)
+    extra = 100 % len(by_type)
+    
+    for i, (stype, s_list) in enumerate(by_type.items()):
+        count_for_type = target_per_type + (1 if i < extra else 0)
+        for j in range(count_for_type):
+            scenario = s_list[j % len(s_list)]
+            query = query_templates[j % len(query_templates)].format(label=scenario["label"])
+            conn.execute(
+                """INSERT INTO eval_queries
+                   (query, expected_document_id, expected_version_id, expected_answer,
+                    expected_citation, category, scenario_type, expected_behavior)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (query, scenario["document_id"], scenario["version_id"],
+                 scenario["expected_answer"], scenario["expected_citation"],
+                 scenario["scenario_type"], scenario["scenario_type"], scenario["expected_behavior"]),
+            )
+            made += 1
     conn.commit()
 
     log_event("system", "SEED_DATASET_GENERATED", metadata={
