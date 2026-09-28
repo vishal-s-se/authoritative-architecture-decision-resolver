@@ -315,7 +315,7 @@ async function renderDashboard() {
 function renderAuditTable(events) {
   if (!events || !events.length) return "<p class='subtitle'>No events yet.</p>";
   return `<table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Document</th><th>Reason</th></tr></thead><tbody>
-    ${events.map(e => `<tr><td class="mono">${(e.timestamp||"").slice(0,19)}</td><td>${e.user||"-"}</td><td>${e.action}</td><td class="mono">${e.document_id||"-"}</td><td>${e.reason||"-"}</td></tr>`).join("")}
+    ${events.map(e => `<tr><td class="mono">${escapeHTML((e.timestamp||"").slice(0,19))}</td><td>${escapeHTML(e.user||"-")}</td><td>${escapeHTML(e.action)}</td><td class="mono">${escapeHTML(e.document_id||"-")}</td><td>${escapeHTML(e.reason||"-")}</td></tr>`).join("")}
   </tbody></table>`;
 }
 
@@ -332,23 +332,38 @@ function renderAskResult(r) {
     }
     let banner = "";
     if (r.conflict) banner += `<div class="conflict-banner">AUTHORITY CONFLICT — Conflicting approval records detected for this version. Manual review required.</div>`;
-    if (r.is_override) banner += `<div class="override-banner">MANUAL OVERRIDE ACTIVE — ${r.override_reason || ""}</div>`;
-    return `${banner}
+    if (r.is_override) banner += `<div class="override-banner">MANUAL OVERRIDE ACTIVE — ${escapeHTML(r.override_reason || "")}</div>`;
+    const markup = `${banner}
       <div class="answer-block">
-        <div class="answer-text">${r.answer}</div>
+        <div class="answer-text">${escapeHTML(r.answer)}</div>
         <div class="source-grid">
-          <div><span class="k">Authoritative Document:</span> ${r.document_title}</div>
-          <div><span class="k">Version:</span> v${r.version_number}</div>
-          <div><span class="k">Status:</span> ${statusBadge(r.status)}</div>
+          <div><span class="k">Authoritative Document:</span> ${escapeHTML(r.document_title)}</div>
+          <div><span class="k">Version:</span> v${escapeHTML(r.version_number)}</div>
+          <div><span class="k">Status:</span> ${statusBadge(escapeHTML(r.status))}</div>
           <div><span class="k">Grounded:</span> ${r.grounded ? "Yes" : "No — insufficient evidence"}</div>
-          <div><span class="k">Citation:</span> Section ${r.citation.section}, Page ${r.citation.page}</div>
-          <div><span class="k">Authority Score:</span> <span class="score-big">${r.authority_score}%</span></div>
+          <div><span class="k">Citation:</span> <button class="citation-link" data-version="${escapeHTML(r.version_id)}" data-chunk="${escapeHTML(r.citation.chunk_id)}">Section ${escapeHTML(r.citation.section)}, Page ${escapeHTML(r.citation.page)}</button></div>
+          <div><span class="k">Authority Score:</span> <span class="score-big">${escapeHTML(r.authority_score)}%</span></div>
         </div>
         <h3 style="margin-top:16px">Why This Source?</h3>
-        ${Object.entries(r.breakdown).map(([k, v]) => `<div class="breakdown-row"><span>${k}</span><span>${v.points} / ${v.max}</span></div>`).join("")}
-        <p class="subtitle" style="margin-top:10px">${r.relevance_note}</p>
+        ${Object.entries(r.breakdown || {}).map(([k, v]) => `<div class="breakdown-row"><span>${escapeHTML(k)}</span><span>${escapeHTML(v.points)} / ${escapeHTML(v.max)}</span></div>`).join("")}
+        <p class="subtitle" style="margin-top:10px">${escapeHTML(r.relevance_note)}</p>
+        <form id="feedbackForm" class="panel"><h3>Trust Feedback</h3>${[["answer_clear","Was the answer clear?"],["source_clear","Was the source clear?"],["citation_useful","Was the citation useful?"],["increased_trust","Did this increase trust?"],["would_use","Would you use this instead of manual checking?"]].map(([name,label]) => `<label>${escapeHTML(label)}<select name="${name}"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label>`).join("")}<textarea name="comment" placeholder="Comment (optional)"></textarea><button type="submit">Submit feedback</button></form>
       </div>
       </div>`;
+    const citationButton = document.querySelector(".citation-link");
+    if (citationButton) citationButton.addEventListener("click", () => openCitation(citationButton.dataset.version, citationButton.dataset.chunk));
+    const feedbackForm = document.getElementById("feedbackForm");
+    feedbackForm.addEventListener("submit", async (event) => { event.preventDefault(); const values = Object.fromEntries(new FormData(feedbackForm)); ["answer_clear","source_clear","citation_useful","increased_trust","would_use"].forEach(key => values[key] = Number(values[key])); try { await api("/api/feedback", { method: "POST", body: JSON.stringify({ query: r.document_title, ...values }) }); toast("Feedback submitted."); feedbackForm.reset(); } catch (error) { toast(`Error: ${error.message}`); } });
+    return markup;
+}
+
+async function openCitation(versionId, chunkId) {
+  try {
+    const chunk = await api(`/api/citations/${encodeURIComponent(versionId)}/${encodeURIComponent(chunkId)}`);
+    const modal = document.createElement("div"); modal.className = "panel citation-modal";
+    modal.innerHTML = `<h3>Source Chunk</h3><p>${escapeHTML(chunk.section)} — Page ${escapeHTML(chunk.page)}</p><pre>${escapeHTML(chunk.source_text)}</pre><button class="secondary">Close</button>`;
+    modal.querySelector("button").addEventListener("click", () => modal.remove()); document.body.appendChild(modal);
+  } catch (error) { toast(`Citation unavailable: ${error.message}`); }
 }
 
 async function sendFeedback(query, positive) {
@@ -391,8 +406,9 @@ async function renderDocuments() {
   document.getElementById("ownerSelect").innerHTML = owners.map(o => `<option value="${o.id}">${o.name} (${o.authority_level})</option>`).join("");
   const docs = await api("/api/documents");
   document.getElementById("docTable").innerHTML = `<table><thead><tr><th>Title</th><th>ID</th><th>Versions</th><th>Authoritative Version</th><th>Access</th></tr></thead><tbody>
-    ${docs.map(d => `<tr onclick="openDoc('${d.id}')" style="cursor:pointer"><td>${d.title}</td><td class="mono">${d.id}</td><td>${d.version_count}</td><td class="mono">${d.authoritative_version || "-"} ${d.is_override ? "🔒" : ""}</td><td>${d.accessible ? "✅" : "🚫"}</td></tr>`).join("")}
+    ${docs.map(d => `<tr data-doc-id="${escapeHTML(d.id)}" class="doc-row" style="cursor:pointer"><td>${escapeHTML(d.title)}</td><td class="mono">${escapeHTML(d.id)}</td><td>${escapeHTML(d.version_count)}</td><td class="mono">${escapeHTML(d.authoritative_version || "-")} ${d.is_override ? "override" : ""}</td><td>${d.accessible ? "allowed" : "denied"}</td></tr>`).join("")}
   </tbody></table>`;
+  document.querySelectorAll(".doc-row").forEach(row => row.addEventListener("click", () => openDoc(row.dataset.docId)));
 
   document.getElementById("uploadForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -435,13 +451,18 @@ async function loadResolver(docId) {
       const message = proposed.conflict
         ? "⚠ AUTHORITY CONFLICT — Automatic authority resolution is suspended. Review approvals before selecting a source."
         : "NO APPROVED VERSION — No version is eligible for automatic authority resolution.";
-      area.innerHTML = `<div class="conflict-banner">${message}</div>
+      area.innerHTML = `<div class="conflict-banner">${escapeHTML(message)} ${proposed.conflict ? `<button id="reviewConflict">Review</button><button id="resolveConflict">Resolve</button>` : ""}</div>
         <div class="panel"><h3>Baseline</h3><div class="row"><span>Newest version</span><span>v${baseline.version.version_number} (${baseline.version.status})</span></div></div>`;
+      const review = document.getElementById("reviewConflict");
+      if (review) review.addEventListener("click", () => route("approvals"));
+      const resolve = document.getElementById("resolveConflict");
+      if (resolve) resolve.addEventListener("click", () => route("approvals"));
       return;
     }
     area.innerHTML = `
       ${proposed.conflict ? `<div class="conflict-banner">⚠ AUTHORITY CONFLICT — Conflicting approval records detected. Manual review required.</div>` : ""}
-      ${proposed.is_override ? `<div class="override-banner">MANUAL OVERRIDE ACTIVE — ${proposed.override_reason}</div>` : ""}
+      ${proposed.is_override ? `<div class="override-banner">MANUAL OVERRIDE ACTIVE — ${escapeHTML(proposed.override_reason)}</div>` : ""}
+      ${proposed.conflict ? `<div class="panel"><button id="reviewConflict">Review</button><button id="overrideConflict">Override</button><button id="resolveConflict">Resolve</button></div>` : ""}
       <div class="metric-compare">
         <div class="col"><h4>BASELINE (newest wins)</h4>
           <div class="row"><span>Version</span><span>v${baseline.version.version_number}</span></div>
@@ -462,6 +483,12 @@ async function loadResolver(docId) {
         ${detail.versions.map(v => `<tr><td>v${v.version_number}${v.id===proposed.version.id?' ⭐':''}</td><td>${statusBadge(v.status)}</td><td>${v.owner_id}</td><td class="mono">${v.modified_date.slice(0,10)}</td><td>${v.approvals.map(a=>`${a.approver_name}:${a.decision}`).join(", ")||"-"}</td></tr>`).join("")}
         </tbody></table>
       </div>`;
+    const review = document.getElementById("reviewConflict");
+    if (review) review.addEventListener("click", () => route("approvals"));
+    const resolve = document.getElementById("resolveConflict");
+    if (resolve) resolve.addEventListener("click", () => route("approvals"));
+    const overrideButton = document.getElementById("overrideConflict");
+    if (overrideButton) overrideButton.addEventListener("click", () => route("override"));
   } catch (e) { area.innerHTML = `<div class="conflict-banner">Error: ${e.message}</div>`; }
 }
 

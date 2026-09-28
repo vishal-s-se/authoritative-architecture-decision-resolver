@@ -541,16 +541,17 @@ class FeedbackRequest(BaseModel):
     citation_useful: int = Field(ge=1, le=5)
     increased_trust: int = Field(ge=1, le=5)
     would_use: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
 
 
 @app.post("/api/feedback")
 def submit_feedback(body: FeedbackRequest):
     conn = get_conn()
     conn.execute(
-        """INSERT INTO feedback (query, answer_clear, source_clear, citation_useful, increased_trust, would_use, created_at)
-           VALUES (?,?,?,?,?,?,?)""",
+          """INSERT INTO feedback (query, answer_clear, source_clear, citation_useful, increased_trust, would_use, comment, created_at)
+              VALUES (?,?,?,?,?,?,?,?)""",
         (body.query, body.answer_clear, body.source_clear, body.citation_useful,
-         body.increased_trust, body.would_use, datetime.now(timezone.utc).isoformat()),
+            body.increased_trust, body.would_use, body.comment, datetime.now(timezone.utc).isoformat()),
     )
     conn.commit()
     return {"ok": True}

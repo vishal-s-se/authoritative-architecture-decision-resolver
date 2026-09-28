@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS feedback (
     citation_useful INTEGER,
     increased_trust INTEGER,
     would_use INTEGER,
+    comment TEXT,
     created_at TEXT NOT NULL
 );
 
@@ -169,6 +170,9 @@ def init_db():
         conn.execute("ALTER TABLE audit_log ADD COLUMN prev_hash TEXT")
     if "event_hash" not in audit_columns:
         conn.execute("ALTER TABLE audit_log ADD COLUMN event_hash TEXT")
+    feedback_columns = {row["name"] for row in conn.execute("PRAGMA table_info(feedback)").fetchall()}
+    if "comment" not in feedback_columns:
+        conn.execute("ALTER TABLE feedback ADD COLUMN comment TEXT")
     conn.commit()
 
 
