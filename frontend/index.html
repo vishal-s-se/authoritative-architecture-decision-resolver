@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Authoritative Architecture Decision Resolver</title>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div id="loginScreen" class="login-shell">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="brand">ADR RESOLVER<small>Authority &amp; Audit Console</small></div>
+      <h1>Choose a user</h1>
+      <p>Select the role you want to sign in as.</p>
+    </div>
+    <div class="login-grid">
+      <button class="user-login-card" data-user="admin">
+        <span class="user-role">ADMIN</span>
+        <strong>admin</strong>
+        <small>Password: admin123</small>
+      </button>
+      <button class="user-login-card" data-user="architect1">
+        <span class="user-role">ARCHITECT</span>
+        <strong>architect1</strong>
+        <small>Password: architect123</small>
+      </button>
+      <button class="user-login-card" data-user="engineer1">
+        <span class="user-role">ENGINEER</span>
+        <strong>engineer1</strong>
+        <small>Password: engineer123</small>
+      </button>
+      <button class="user-login-card" data-user="viewer1">
+        <span class="user-role">VIEWER</span>
+        <strong>viewer1</strong>
+        <small>Password: viewer123</small>
+      </button>
+    </div>
+    <div class="login-form-box">
+      <label>Manual sign-in</label>
+      <input id="manualUser" type="text" value="admin" placeholder="Username" />
+      <input id="manualPassword" type="password" value="admin123" placeholder="Password" />
+      <button id="manualLoginBtn">Sign in</button>
+    </div>
+  </div>
+</div>
+<div id="app" class="hidden">
+  <div id="sidebar">
+    <div class="brand">ADR RESOLVER<small>Authority &amp; Audit Console</small></div>
+    <div class="nav-item active" data-page="dashboard">Dashboard</div>
+    <div class="nav-item" data-page="documents">Documents</div>
+    <div class="nav-item" data-page="resolver">Authority Resolver</div>
+    <div class="nav-item" data-page="approvals">Approvals</div>
+    <div class="nav-item" data-page="override">Manual Override</div>
+    <div class="nav-item" data-page="audit">Audit Trail</div>
+    <div class="nav-item" data-page="eval">Test / Evaluation</div>
+    <div class="nav-item" data-page="settings">Settings</div>
+    <div id="session">
+      Logged in as <b id="whoami">anonymous (VIEWER)</b>
+      <select id="roleSwitch">
+        <option value="admin">admin / ADMIN</option>
+        <option value="architect1">architect1 / ARCHITECT</option>
+        <option value="engineer1">engineer1 / ENGINEER</option>
+        <option value="viewer1">viewer1 / VIEWER</option>
+      </select>
+      <button id="logoutBtn" class="secondary" style="margin-top:12px; width:100%;">Log out</button>
+    </div>
+  </div>
+  <div id="main"></div>
+</div>
+<div id="aiChatPanel" class="ai-chat-panel hidden" aria-live="polite">
+  <div class="ai-chat-header">
+    <div>
+      <div class="ai-chat-title">Decision Lookup</div>
+      <div class="ai-chat-subtitle">Choose a question to see the authoritative result</div>
+    </div>
+    <button id="closeAiChat" class="ai-close-btn" type="button" aria-label="Close assistant">×</button>
+  </div>
+  <div id="aiChatOptions" class="ai-chat-options"></div>
+  <div id="aiChatMessages" class="ai-chat-messages" aria-live="polite"></div>
+</div>
+<button id="floatingAskAi" class="floating-ai-btn" type="button" aria-label="Ask AI">
+  <span class="ai-icon">✦</span>
+  <span>Decision lookup</span>
+</button>
+<script src="app.js"></script>
+</body>
+</html>
