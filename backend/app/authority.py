@@ -210,7 +210,16 @@ def resolve_authority(document_id, user=None, persist=True, cfg=None):
         s, breakdown, status = score_version(v, cfg, versions)
         scored.append((s, v, breakdown, status, False))
 
-    scored.sort(key=lambda t: (t[0], t[1]["version_number"]), reverse=True)
+    policy = cfg.get("resolver_policy", "tiered")
+    if policy == "tiered":
+        scored.sort(key=lambda t: (
+            t[2]["ownership"]["raw"],
+            t[2]["recency"]["raw"],
+            t[2]["version"]["raw"]
+        ), reverse=True)
+    else:
+        scored.sort(key=lambda t: (t[0], t[1]["version_number"]), reverse=True)
+        
     best_score, best_version, best_breakdown, best_status, best_conflict = scored[0]
 
     result = {

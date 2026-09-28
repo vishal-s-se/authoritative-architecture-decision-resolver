@@ -29,6 +29,7 @@ DEFAULT_CONFIG = {
         "REJECTED": 0.0,
     },
     "recency_half_life_days": 180,
+    "resolver_policy": "tiered",
     "ai_provider": os.environ.get("ADR_AI_PROVIDER", "mock"),
     "ai_model": os.environ.get("ADR_AI_MODEL", "mock-llm"),
 }

@@ -585,7 +585,7 @@ async function renderAudit() {
 
 // ------------------------------------------------------------------ EVAL
 async function renderEval() {
-  $main.innerHTML = `<h1>Evaluation</h1><div class="subtitle">Live baseline versus deterministic proposed authority results.</div>
+  $main.innerHTML = `<h1>Evaluation</h1><div class="subtitle">Live baseline versus weighted versus tiered authority results.</div>
   <div class="pill-row"><button id="runEvaluation">Run Evaluation</button><span id="evalStatus" class="subtitle"></span></div>
   <div id="evalResults" style="margin-top:16px"></div><div id="scenarioChart" class="panel"></div>
   <div id="errorAnalysis" class="panel"></div><div id="sensitivity" class="panel"></div>
@@ -603,10 +603,11 @@ async function runEval() {
   const area = document.getElementById("evalResults");
   const button = document.getElementById("runEvaluation");
   button.disabled = true;
-  document.getElementById("evalStatus").textContent = "Running baseline and proposed evaluations…";
+  document.getElementById("evalStatus").textContent = "Running baseline, weighted, and tiered evaluations…";
   try {
     await api("/api/eval/run?mode=baseline", { method: "POST" });
-    await api("/api/eval/run?mode=proposed", { method: "POST" });
+    await api("/api/eval/run?mode=weighted", { method: "POST" });
+    await api("/api/eval/run?mode=tiered", { method: "POST" });
     toast("Evaluation complete.");
     loadEvalHistory();
   } catch (e) { area.innerHTML = `<div class="conflict-banner">${escapeHTML(e.message)}</div>`; }
@@ -619,10 +620,10 @@ async function loadEvalHistory() {
   const latest = Object.fromEntries(results.map((result) => [result.mode, result]));
   const metrics = [["Authority Selection", "authority_selection_accuracy"], ["Answer", "answer_accuracy"], ["Citation", "citation_accuracy"],
     ["Access Control", "access_control_accuracy"], ["Conflict Detection", "conflict_detection_accuracy"], ["Manual Override", "manual_override_success"], ["Rollback", "rollback_success"]];
-  area.innerHTML = `<table><thead><tr><th>Metric</th><th>Baseline</th><th>Proposed</th></tr></thead><tbody>
-    ${metrics.map(([label, key]) => `<tr><td>${escapeHTML(label)}</td><td>${escapeHTML(latest.baseline?.[key] ?? "n/a")}%</td><td>${escapeHTML(latest.proposed?.[key] ?? "n/a")}%</td></tr>`).join("")}
+  area.innerHTML = `<table><thead><tr><th>Metric</th><th>Baseline</th><th>Weighted</th><th>Tiered</th></tr></thead><tbody>
+    ${metrics.map(([label, key]) => `<tr><td>${escapeHTML(label)}</td><td>${escapeHTML(latest.baseline?.[key] ?? "n/a")}%</td><td>${escapeHTML(latest.weighted?.[key] ?? "n/a")}%</td><td>${escapeHTML(latest.tiered?.[key] ?? "n/a")}%</td></tr>`).join("")}
   </tbody></table>`;
-  renderScenarioChart(latest.proposed?.scenario_metrics || {});
+  renderScenarioChart(latest.tiered?.scenario_metrics || {});
   const analysis = await api("/api/eval/error-analysis");
   document.getElementById("errorAnalysis").innerHTML = `<h3>Error Analysis</h3><table><thead><tr><th>Category</th><th>Count</th><th>Examples</th></tr></thead><tbody>
     ${Object.entries(analysis.counts || {}).map(([category, count]) => `<tr><td>${escapeHTML(category)}</td><td>${escapeHTML(count)}</td><td><details><summary>View</summary>${(analysis.examples[category] || []).map((example) => `<p><b>${escapeHTML(example.query)}</b><br>Expected: ${escapeHTML(JSON.stringify(example.expected))}<br>Got: ${escapeHTML(JSON.stringify(example.got))}<br>${escapeHTML(example.reason)}</p>`).join("")}</details></td></tr>`).join("")}
@@ -637,7 +638,7 @@ async function loadEvalHistory() {
 
 function renderScenarioChart(scenarios) {
   const entries = Object.entries(scenarios);
-  document.getElementById("scenarioChart").innerHTML = `<h3>Proposed Accuracy by Scenario</h3><svg viewBox="0 0 760 ${Math.max(160, entries.length * 32)}" role="img" aria-label="Scenario accuracy chart">
+  document.getElementById("scenarioChart").innerHTML = `<h3>Tiered Accuracy by Scenario</h3><svg viewBox="0 0 760 ${Math.max(160, entries.length * 32)}" role="img" aria-label="Scenario accuracy chart">
     ${entries.map(([name, value], index) => { const accuracy = Number(value.authority_selection_accuracy || 0); const y = index * 32 + 20; return `<text x="0" y="${y}" font-size="11">${escapeHTML(name)}</text><rect x="220" y="${y - 12}" width="${accuracy * 5}" height="18" fill="#2c7a7b"><title>${escapeHTML(accuracy)}%</title></rect><text x="${230 + accuracy * 5}" y="${y}" font-size="11">${escapeHTML(accuracy)}%</text>`; }).join("")}
   </svg>`;
 }
@@ -648,12 +649,18 @@ async function renderSettings() {
   const cfg = await api("/api/settings");
   const readonly = ROLE !== "ADMIN";
   document.getElementById("settingsArea").innerHTML = `
+    <div class="panel"><h3>Resolver Policy</h3>
+      <select id="resolverPolicy" ${readonly ? "disabled" : ""}>
+        <option value="tiered" ${cfg.resolver_policy === 'tiered' ? 'selected' : ''}>Tiered (Eligibility -> Conflict -> Authority -> Recency)</option>
+        <option value="weighted" ${cfg.resolver_policy === 'weighted' ? 'selected' : ''}>Weighted</option>
+      </select>
+    </div>
     <div class="panel"><h3>Authority Score Weights</h3>
       ${Object.entries(cfg.weights).map(([k, v]) => `
         <label>${escapeHTML(k)} (${escapeHTML((v*100).toFixed(0))}%)</label>
         <input type="number" step="0.01" min="0" max="1" id="w_${escapeHTML(k)}" value="${escapeHTML(v)}" ${readonly ? "disabled" : ""}/>
       `).join("")}
-      <div style="margin-top:12px"><button id="saveWeights" ${readonly ? "disabled" : ""}>Save Weights</button></div>
+      <div style="margin-top:12px"><button id="saveWeights" ${readonly ? "disabled" : ""}>Save Settings</button></div>
     </div>
     <div class="panel"><h3>Status Scores</h3>
       ${Object.entries(cfg.status_scores).map(([k, v]) => `<div class="breakdown-row"><span>${escapeHTML(k)}</span><span>${escapeHTML(v)}</span></div>`).join("")}
@@ -667,7 +674,8 @@ async function renderSettings() {
     document.getElementById("saveWeights").addEventListener("click", async () => {
       const weights = {};
       Object.keys(cfg.weights).forEach(k => weights[k] = parseFloat(document.getElementById(`w_${k}`).value));
-      try { await api("/api/settings", { method: "POST", body: JSON.stringify({ weights }) }); toast("Weights saved."); }
+      const resolver_policy = document.getElementById("resolverPolicy").value;
+      try { await api("/api/settings", { method: "POST", body: JSON.stringify({ weights, resolver_policy }) }); toast("Settings saved."); }
       catch (e) { toast("Error: " + e.message); }
     });
   }

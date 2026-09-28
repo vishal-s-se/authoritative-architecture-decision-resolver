@@ -38,30 +38,33 @@ def _ensure_dataset():
     }
 
 
-def _metric_table(baseline, proposed):
-    lines = ["| Metric | Baseline | Proposed | Improvement |", "|---|---:|---:|---:|"]
+def _metric_table(baseline, weighted, tiered):
+    lines = ["| Metric | Baseline | Weighted | Tiered | Improvement (Tiered vs Baseline) |", "|---|---:|---:|---:|---:|"]
     for metric in METRICS:
         before = baseline.get(metric)
-        after = proposed.get(metric)
-        delta = round(after - before, 2) if isinstance(before, (int, float)) and isinstance(after, (int, float)) else None
-        lines.append(f"| {metric} | {_fmt(before)} | {_fmt(after)} | {_fmt(delta) if delta is not None else 'n/a'} |")
+        w_after = weighted.get(metric)
+        t_after = tiered.get(metric)
+        delta = round(t_after - before, 2) if isinstance(before, (int, float)) and isinstance(t_after, (int, float)) else None
+        lines.append(f"| {metric} | {_fmt(before)} | {_fmt(w_after)} | {_fmt(t_after)} | {_fmt(delta) if delta is not None else 'n/a'} |")
     return "\n".join(lines)
 
 
-def _scenario_table(baseline, proposed):
-    names = sorted(set(baseline.get("scenario_metrics", {})) | set(proposed.get("scenario_metrics", {})))
-    lines = ["| Scenario type | Baseline authority | Proposed authority |", "|---|---:|---:|"]
+def _scenario_table(baseline, weighted, tiered):
+    names = sorted(set(baseline.get("scenario_metrics", {})) | set(weighted.get("scenario_metrics", {})) | set(tiered.get("scenario_metrics", {})))
+    lines = ["| Scenario type | Baseline authority | Weighted authority | Tiered authority |", "|---|---:|---:|---:|"]
     for name in names:
         before = baseline.get("scenario_metrics", {}).get(name, {}).get("authority_selection_accuracy")
-        after = proposed.get("scenario_metrics", {}).get(name, {}).get("authority_selection_accuracy")
-        lines.append(f"| {name} | {_fmt(before)} | {_fmt(after)} |")
+        w_after = weighted.get("scenario_metrics", {}).get(name, {}).get("authority_selection_accuracy")
+        t_after = tiered.get("scenario_metrics", {}).get(name, {}).get("authority_selection_accuracy")
+        lines.append(f"| {name} | {_fmt(before)} | {_fmt(w_after)} | {_fmt(t_after)} |")
     return "\n".join(lines)
 
 
 def main():
     stats = _ensure_dataset()
     baseline = run_evaluation("baseline")
-    proposed = run_evaluation("proposed")
+    weighted = run_evaluation("weighted")
+    tiered = run_evaluation("tiered")
     analysis = error_analysis()
     sensitivity = sensitivity_experiment()
     report = f"""# Evaluation Report
@@ -75,17 +78,17 @@ answer generation for every planted query. Evaluation state is copied to a
 temporary SQLite database, so override and rollback checks cannot alter the live
 authority state. Dataset counts: {json.dumps(stats, sort_keys=True)}.
 
-## Baseline vs Proposed
+## Baseline vs Weighted vs Tiered
 
-{_metric_table(baseline, proposed)}
+{_metric_table(baseline, weighted, tiered)}
 
 ## Per-scenario authority accuracy
 
-{_scenario_table(baseline, proposed)}
+{_scenario_table(baseline, weighted, tiered)}
 
 ## Error analysis
 
-The proposed run assigns one category to every failed query. Counts and up to
+The proposed runs (tiered/weighted) assign one category to every failed query. Counts and up to
 three concrete examples are returned by `GET /api/eval/error-analysis`.
 
 ```json
@@ -115,7 +118,7 @@ selected version and may summarize it, but it never decides authority.
 """
     output = ROOT / "docs" / "evaluation_report.md"
     output.write_text(report, encoding="utf-8")
-    print(_metric_table(baseline, proposed))
+    print(_metric_table(baseline, weighted, tiered))
     print(f"Generated {output}")
 
 

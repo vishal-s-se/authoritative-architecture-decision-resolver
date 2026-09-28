@@ -472,6 +472,7 @@ class SettingsRequest(BaseModel):
     weights: Optional[dict] = None
     status_scores: Optional[dict] = None
     recency_half_life_days: Optional[int] = None
+    resolver_policy: Optional[str] = None
 
 
 @app.post("/api/settings")
@@ -486,6 +487,8 @@ def update_settings(body: SettingsRequest, user=Depends(require_admin)):
         cfg["status_scores"] = body.status_scores
     if body.recency_half_life_days:
         cfg["recency_half_life_days"] = body.recency_half_life_days
+    if body.resolver_policy:
+        cfg["resolver_policy"] = body.resolver_policy
     save_config(cfg)
     log_event(user["username"], "SETTINGS_UPDATED", new_value=json.dumps(cfg))
     return cfg
@@ -507,8 +510,8 @@ def admin_seed(user=Depends(require_admin)):
 # --------------------------------------------------------------- EVAL -----
 @app.post("/api/eval/run")
 def eval_run(mode: str, user=Depends(current_user)):
-    if mode not in ("baseline", "proposed"):
-        raise HTTPException(400, "mode must be 'baseline' or 'proposed'")
+    if mode not in ("baseline", "proposed", "weighted", "tiered"):
+        raise HTTPException(400, "mode must be 'baseline', 'proposed', 'weighted' or 'tiered'")
     result = run_evaluation(mode)
     log_event(user["username"], "EVAL_RUN", reason=f"Evaluation mode: {mode}",
               metadata={"run_id": result.get("run_id"), "mode": mode})

@@ -106,8 +106,13 @@ def _pipeline(query, mode, user_role, cfg):
             "version": None, "selected_document_id": None,
             "answer": "You do not have permission to access the relevant documents for this question."}
     selected = accessible[0]
-    resolver_result = baseline_resolve(selected["document_id"]) if mode == "baseline" else resolve_authority(
-        selected["document_id"], user="eval-harness", persist=False, cfg=cfg)
+    if mode == "baseline":
+        resolver_result = baseline_resolve(selected["document_id"])
+    else:
+        # Override policy if mode specifies it
+        if mode in ("weighted", "tiered"):
+            cfg["resolver_policy"] = mode
+        resolver_result = resolve_authority(selected["document_id"], user="eval-harness", persist=False, cfg=cfg)
     if not resolver_result:
         return {"result": {}, "candidates": candidates, "version": None,
             "selected_document_id": selected["document_id"], "answer": ""}
@@ -249,8 +254,8 @@ def _persist(mode, metrics, weights, rows):
 
 
 def run_evaluation(mode, user_role="VIEWER", weights=None):
-    if mode not in ("baseline", "proposed"):
-        raise ValueError("mode must be 'baseline' or 'proposed'")
+    if mode not in ("baseline", "proposed", "weighted", "tiered"):
+        raise ValueError("mode must be 'baseline', 'proposed', 'weighted', or 'tiered'")
     active_weights = deepcopy(weights or load_config()["weights"])
     with _temporary_database():
         queries = get_conn().execute("SELECT * FROM eval_queries ORDER BY id").fetchall()
@@ -275,7 +280,7 @@ def run_evaluation(mode, user_role="VIEWER", weights=None):
 
 
 def error_analysis():
-    proposed = next((result for result in latest_results() if result["mode"] == "proposed"), None)
+    proposed = next((result for result in latest_results() if result["mode"] in ("proposed", "tiered", "weighted")), None)
     rows = proposed.get("rows", []) if proposed else []
     examples = {category: [] for category in sorted(ERROR_CATEGORIES)}
     for row in rows:
@@ -296,7 +301,7 @@ def sensitivity_experiment():
     }
     results = {}
     for name, weights in alternatives.items():
-        run = run_evaluation("proposed", weights=weights)
+        run = run_evaluation("weighted", weights=weights)
         results[name] = {
             "run_id": run["run_id"],
             "weights": weights,
