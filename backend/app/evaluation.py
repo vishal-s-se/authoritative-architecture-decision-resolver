@@ -261,6 +261,14 @@ def run_evaluation(mode, user_role="VIEWER", weights=None):
         override_ok, rollback_ok = _exercise_override_and_rollback(user_role)
         metrics["manual_override_success"] = 100.0 if override_ok else 0.0
         metrics["rollback_success"] = 100.0 if rollback_ok else 0.0
+    previous = next((item for item in latest_results() if item["mode"] != mode), None)
+    if previous:
+        metric_names = ("authority_selection_accuracy", "answer_accuracy", "citation_accuracy",
+                        "access_control_accuracy", "conflict_detection_accuracy",
+                        "manual_override_success", "rollback_success")
+        metrics["overall_improvement"] = {
+            name: round(metrics[name] - previous.get(name, 0), 2) for name in metric_names
+        }
     result = _persist(mode, metrics, active_weights, rows)
     result["scenario_metrics"] = _scenario_metrics(rows)
     return result
@@ -286,8 +294,19 @@ def sensitivity_experiment():
         "recency_heavy": {"approval": 0.2, "ownership": 0.2, "recency": 0.5, "version": 0.05, "evidence": 0.05},
         "approval_only": {"approval": 1.0, "ownership": 0.0, "recency": 0.0, "version": 0.0, "evidence": 0.0},
     }
-    return {name: run_evaluation("proposed", weights=weights)["authority_selection_accuracy"]
-            for name, weights in alternatives.items()}
+    results = {}
+    for name, weights in alternatives.items():
+        run = run_evaluation("proposed", weights=weights)
+        results[name] = {
+            "run_id": run["run_id"],
+            "weights": weights,
+            "authority_selection_accuracy": run["authority_selection_accuracy"],
+            "answer_accuracy": run["answer_accuracy"],
+            "citation_accuracy": run["citation_accuracy"],
+            "access_control_accuracy": run["access_control_accuracy"],
+            "conflict_detection_accuracy": run["conflict_detection_accuracy"],
+        }
+    return results
 
 
 def latest_results():
