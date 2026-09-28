@@ -6,7 +6,7 @@ Baseline audit: 2026-09-28
 - [DONE] Step 1 - Independent ground truth: deterministic planted scenarios, nullable behavior labels, minimum dataset counts, and reproducibility tests pass.
 - [DONE] Step 2 - Baseline and proposed run end-to-end on a temporary SQLite copy, compute seven live metrics, validate override/rollback, and persist weights/results.
 - [DONE] Step 3 - Error analysis returns exactly one category with concrete examples/reasons; sensitivity returns real metric bundles for default, recency-heavy, and approval-only weights.
-- [MISSING] Step 4 - Evaluation script and generated report from an actual run.
+- [DONE] Step 4 - `scripts/run_evaluation.py` generates the report from real baseline/proposed, error-analysis, and sensitivity runs; the report contains the actual metric table.
 - [PARTIAL] Step 5 - Governance features: approvals and pending changes exist; override removal, role/account setup, and transactional correctness need completion.
 - [PARTIAL] Step 6 - Chunk-aware ingestion and real citations.
 - [PARTIAL] Step 7 - Tamper-evident audit chain exists; migration and verification coverage need completion.
