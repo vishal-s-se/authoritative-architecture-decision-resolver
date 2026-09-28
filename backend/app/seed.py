@@ -92,6 +92,24 @@ MECHANISMS = ["OAuth 2.0 with OpenID Connect", "SAML 2.0 federation", "PostgreSQ
               "JWT-based stateless sessions", "Vault-managed secrets", "multi-region active-active failover",
               "Envoy-based edge proxying", "Snowflake as the data warehouse engine"]
 
+DEMO_USERS = [
+    ("admin", "admin123", "ADMIN"),
+    ("admin2", "admin2-123", "ADMIN"),
+    ("architect1", "architect123", "ARCHITECT"),
+    ("engineer1", "engineer123", "ENGINEER"),
+    ("viewer1", "viewer123", "VIEWER"),
+]
+
+
+def ensure_default_users():
+    conn = get_conn()
+    for username, password, role in DEMO_USERS:
+        conn.execute(
+            "INSERT OR IGNORE INTO users (username, password_hash, role) VALUES (?,?,?)",
+            (username, bcrypt.hash(password), role),
+        )
+    conn.commit()
+
 
 def _plant_eval_scenarios(conn, owner_ids):
     """Create labelled fixtures whose expected outcomes are authored up front."""
@@ -218,18 +236,7 @@ def generate(num_documents=50, target_versions=200, target_approvals=100, num_ac
     init_db()
 
     # --- USERS ---
-    demo_users = [
-        ("admin", "admin123", "ADMIN"),
-        ("admin2", "admin2-123", "ADMIN"),
-        ("architect1", "architect123", "ARCHITECT"),
-        ("engineer1", "engineer123", "ENGINEER"),
-        ("viewer1", "viewer123", "VIEWER"),
-    ]
-    for uname, pwd, role in demo_users:
-        conn.execute(
-            "INSERT OR IGNORE INTO users (username, password_hash, role) VALUES (?,?,?)",
-            (uname, bcrypt.hash(pwd), role),
-        )
+    ensure_default_users()
 
     # --- OWNERS (>=30) ---
     owners = list(OWNER_DEFS)

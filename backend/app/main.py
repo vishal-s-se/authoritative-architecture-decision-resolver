@@ -21,7 +21,7 @@ from .access import is_allowed, check_access_or_log, ROLE_RANK
 from .retrieval import search, build_index
 from .ai import answer_question
 from .ingestion import ingest_document, ALLOWED_EXTENSIONS
-from .seed import generate as seed_generate
+from .seed import generate as seed_generate, ensure_default_users
 from .evaluation import run_evaluation, latest_results, error_analysis, sensitivity_experiment
 
 app = FastAPI(title="Authoritative Architecture Decision Resolver")
@@ -42,6 +42,7 @@ JWT_MINUTES = 60
 @app.on_event("startup")
 def startup():
     init_db()
+    ensure_default_users()
     cfg = load_config()
     save_config(cfg)
 
@@ -238,6 +239,10 @@ class ChangeReviewRequest(BaseModel):
     decision: str
 
 
+class RemoveOverrideRequest(BaseModel):
+    reason: str
+
+
 def require_architect_or_admin(user=Depends(current_user)):
     if user["role"] not in ("ADMIN", "ARCHITECT"):
         raise HTTPException(403, "architect or administrator role required")
@@ -254,13 +259,13 @@ def add_approval(body: ApprovalRequest, user=Depends(require_architect_or_admin)
     version = conn.execute("SELECT * FROM versions WHERE id=?", (body.version_id,)).fetchone()
     if not version:
         raise HTTPException(404, "version not found")
+    before = resolve_authority(version["document_id"], user=user["username"], persist=False)
     owner = conn.execute("SELECT id FROM owners WHERE name=?", (user["username"],)).fetchone()
     approver_id = owner["id"] if owner else conn.execute("SELECT id FROM owners ORDER BY authority_level DESC LIMIT 1").fetchone()["id"]
     conn.execute("INSERT INTO approvals (version_id, approver_owner_id, decision, date, reason) VALUES (?,?,?,?,?)",
                  (body.version_id, approver_id, body.decision, datetime.now(timezone.utc).isoformat(), body.reason))
     conn.commit()
     log_event(user["username"], "APPROVAL_ADDED", document_id=version["document_id"], version_id=body.version_id, reason=body.reason)
-    before = resolve_authority(version["document_id"], user=user["username"] , persist=False)
     after = resolve_authority(version["document_id"], user=user["username"])
     before_id = before.get("version")["id"] if before and before.get("version") else None
     after_id = after.get("version")["id"] if after and after.get("version") else None
@@ -299,6 +304,22 @@ def override(document_id: str, body: OverrideRequest, user=Depends(require_admin
     conn.commit()
     log_event(user["username"], "CHANGE_REQUESTED", document_id=document_id, version_id=body.version_id, reason=body.reason)
     return {"pending_change_id": cur.lastrowid, "status": "PENDING"}
+
+
+@app.post("/api/authority/{document_id}/override/remove")
+def remove_override(document_id: str, body: RemoveOverrideRequest, user=Depends(require_admin)):
+    if len(body.reason.strip()) < 5:
+        raise HTTPException(400, "a meaningful reason is required")
+    conn = get_conn()
+    current = conn.execute("SELECT * FROM authoritative WHERE document_id=?", (document_id,)).fetchone()
+    if not current or not current["is_override"]:
+        raise HTTPException(400, "no active override exists")
+    previous = current["version_id"]
+    result = resolve_authority(document_id, user=user["username"], persist=True)
+    log_event(user["username"], "OVERRIDE_REMOVED", document_id=document_id, version_id=previous,
+              previous_value=previous, new_value=result["version"]["id"] if result and result.get("version") else None,
+              reason=body.reason)
+    return {"ok": True, "authority": result}
 
 
 @app.post("/api/authority/{document_id}/rollback")
