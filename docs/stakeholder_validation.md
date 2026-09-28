@@ -10,7 +10,9 @@ from 1 to 5 and add a comment:
 - Would you use this instead of manual checking?
 
 The live summary is available at `GET /api/feedback/summary`, including
-response count and the percentage of ratings at least 4.
+response count, averages, and the percentage of ratings at least 4. The
+Evaluation page reads this same feedback table so the stakeholder summary is
+always pulled from recorded responses rather than hand-entered numbers.
 
 ## Summary
 

@@ -166,21 +166,33 @@ in the **Authority Resolver** page and the **Test/Evaluation** page.
 are logged to the audit trail on generation and shown after clicking "Regenerate
 Synthetic Dataset" on the Dashboard).
 
-`POST /api/eval/run?mode=baseline|proposed` runs every ground-truth query through the
-chosen resolver and computes, **live, from the current database** (never hardcoded):
+`python scripts/run_evaluation.py` runs every planted query through retrieval,
+access filtering, the resolver, and grounded answering. It uses a temporary
+SQLite copy for mutation checks and generates [`docs/evaluation_report.md`](docs/evaluation_report.md)
+from real results. The API equivalent is `POST /api/eval/run?mode=baseline|proposed`.
 
 - Authority Selection Accuracy
 - Citation Accuracy
 - Access Control Accuracy
 - Conflict Detection Accuracy
-- Error count + a sample of categorized failures (wrong version selected, etc.)
+- Manual Override and Rollback Success
+- Per-scenario accuracy, categorized error analysis, and weight sensitivity
 
 Results are stored in `eval_results` and shown historically in the Test/Evaluation page,
 so you can literally watch baseline underperform proposed on the same query set.
 
 ## 14. Test Cases
 
-`tests/test_authority.py` implements all six required cases and passes:
+The suite has **39 passing tests** across authority resolution, planted scenarios,
+FastAPI TestClient RBAC, access non-leakage, change review, audit tamper detection,
+chunk citations, upload security, prompt injection, concurrency, duplicate uploads,
+and rollback behavior. Run:
+
+```bash
+python -m pytest
+```
+
+`tests/test_authority.py` includes the core cases:
 
 1. Newer draft vs. older approved → approved wins
 2. Two approved versions, different owner authority → higher authority wins
@@ -220,7 +232,7 @@ cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
-Open **http://localhost:8000** — FastAPI serves the frontend directly, no separate
+Set `ADR_JWT_SECRET` from `.env.example`, then open **http://localhost:8000** — FastAPI serves the frontend directly, no separate
 dev server needed.
 
 On first load, log in as `admin` (session selector in the sidebar, password
@@ -242,18 +254,29 @@ populate the database.
 6. **Audit Trail** → see every event above recorded immutably.
 7. **Test/Evaluation** → Run Baseline, Run Proposed → compare real, computed accuracy numbers.
 
-## 18. Limitations
+## 18. Governance and Security
+
+- Approval/rejection and revocation are role-checked, reason-required, and audited.
+- Override and rollback requests require a different administrator to approve them.
+- Expiring JWTs require `ADR_JWT_SECRET`; failed logins are rate-limited and audited.
+- Uploads enforce size, extension, magic bytes, safe filenames, and duplicate hashes.
+- Audit events form a SHA-256 chain verified by `GET /api/audit/verify`.
+- Citations return only permission-checked persisted source chunks.
+
+See [`docs/architecture.md`](docs/architecture.md) and [`docs/stakeholder_validation.md`](docs/stakeholder_validation.md).
+
+## 19. Limitations
 
 - TF-IDF retrieval is a practical local stand-in for real embeddings/vector search;
   swap in FAISS/Chroma + a hosted embedding model for production-grade semantic recall.
 - The mock AI provider answers via grounded sentence-extraction, not a full LLM — set
   `ADR_LLM_API_KEY` to use a real model.
-- Auth is a simple in-memory token store for demo purposes; production use should add
-  JWT expiry, hashed refresh tokens, and a persistent session store.
+- Demo users and SQLite remain intended for local validation; production use should add
+  durable session management, secret rotation, and PostgreSQL migrations.
 - SQLite is fine for this prototype's scale; the schema uses only ANSI SQL so migrating
   to PostgreSQL is a connection-layer swap, not a schema rewrite.
 
-## 19. Future Improvements
+## 20. Future Improvements
 
 - Real vector search (FAISS/Chroma) with chunk-level citations instead of whole-version text.
 - Multi-approver quorum rules (e.g. "requires 2 of 3 board members").
@@ -272,12 +295,18 @@ populate the database.
 | GET/POST | `/api/documents`, `/api/documents/upload` | list / ingest |
 | GET | `/api/authority/{id}` , `/api/authority/{id}/baseline` | resolve authority |
 | POST | `/api/authority/{id}/override`, `/api/authority/{id}/rollback` | admin actions |
+| POST | `/api/authority/{id}/override/remove` | remove active override |
+| POST | `/api/approvals`, `/api/approvals/{id}/revoke` | approval governance |
+| GET/POST | `/api/pending-changes`, `/api/pending-changes/{id}/review` | second-admin review |
 | POST | `/api/ask` | RAG question answering |
+| GET | `/api/citations/{version_id}/{chunk_id}` | permission-checked source chunk |
 | GET | `/api/audit` | audit trail |
+| GET | `/api/audit/verify` | verify audit hash chain |
 | GET/POST | `/api/settings` | scoring weights |
 | POST | `/api/admin/seed` | regenerate synthetic dataset |
 | POST | `/api/eval/run?mode=baseline\|proposed`, GET `/api/eval/results` | evaluation |
+| GET | `/api/eval/error-analysis`, `/api/eval/sensitivity` | errors and sensitivity |
 | POST | `/api/feedback`, GET `/api/feedback/summary` | stakeholder validation |
 
-Demo accounts (seeded): `admin/admin123`, `architect1/architect123`,
+Demo accounts (seeded): `admin/admin123`, `admin2/admin2-123`, `architect1/architect123`,
 `engineer1/engineer123`, `viewer1/viewer123`.
