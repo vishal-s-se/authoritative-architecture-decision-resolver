@@ -7,6 +7,8 @@ import hashlib
 import os
 import re
 import json
+import re
+import zipfile
 from datetime import datetime, timezone
 from .database import get_conn
 from .audit import log_event
@@ -34,12 +36,29 @@ def extract_text(file_path, ext):
     raise ValueError(f"unsupported extension {ext}")
 
 
-def validate_upload(filename, size_bytes):
+def sanitize_filename(filename):
+    base = os.path.basename(filename or "upload")
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", base).strip("._")
+    return safe or "upload"
+
+
+def validate_upload(filename, size_bytes, file_path=None):
+    filename = sanitize_filename(filename)
     ext = os.path.splitext(filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise ValueError(f"file type {ext} not allowed. Allowed: {ALLOWED_EXTENSIONS}")
     if size_bytes > MAX_FILE_SIZE_MB * 1024 * 1024:
         raise ValueError(f"file exceeds {MAX_FILE_SIZE_MB}MB limit")
+    if file_path:
+        with open(file_path, "rb") as handle:
+            header = handle.read(8)
+        valid_magic = {
+            ".txt": True,
+            ".pdf": header.startswith(b"%PDF-"),
+            ".docx": header.startswith(b"PK") and zipfile.is_zipfile(file_path),
+        }
+        if not valid_magic[ext]:
+            raise ValueError("file content does not match its extension")
     return ext
 
 
@@ -62,7 +81,8 @@ def split_into_chunks(text, version_id):
 
 
 def ingest_document(file_path, filename, title, document_id, owner_id, status, user, size_bytes):
-    ext = validate_upload(filename, size_bytes)
+    filename = sanitize_filename(filename)
+    ext = validate_upload(filename, size_bytes, file_path)
     if status not in ALLOWED_STATUSES:
         raise ValueError(f"invalid document status: {status}")
     text = extract_text(file_path, ext)

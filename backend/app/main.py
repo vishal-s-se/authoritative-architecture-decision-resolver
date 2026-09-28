@@ -20,7 +20,7 @@ from .authority import resolve_authority, baseline_resolve, manual_override, rol
 from .access import is_allowed, check_access_or_log, ROLE_RANK
 from .retrieval import search, build_index
 from .ai import answer_question
-from .ingestion import ingest_document, ALLOWED_EXTENSIONS
+from .ingestion import ingest_document, ALLOWED_EXTENSIONS, MAX_FILE_SIZE_MB, sanitize_filename
 from .seed import generate as seed_generate, ensure_default_users
 from .evaluation import run_evaluation, latest_results, error_analysis, sensitivity_experiment
 
@@ -171,7 +171,10 @@ async def upload_document(
     if user["role"] not in ("ADMIN", "ARCHITECT"):
         raise HTTPException(403, "only architects/admins may upload documents")
     contents = await file.read()
-    suffix = os.path.splitext(file.filename or "")[1].lower()
+    if len(contents) > MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(400, f"file exceeds {MAX_FILE_SIZE_MB}MB limit")
+    safe_filename = sanitize_filename(file.filename)
+    suffix = os.path.splitext(safe_filename)[1].lower()
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     tmp_path = tmp_file.name
     with tmp_file as f:

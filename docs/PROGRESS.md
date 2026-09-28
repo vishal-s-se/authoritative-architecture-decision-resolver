@@ -10,7 +10,7 @@ Baseline audit: 2026-09-28
 - [DONE] Step 5 - Approval/revocation, override removal, two-admin pending change review, startup admin2 provisioning, and required audit events are implemented and validated.
 - [DONE] Step 6 - Section-heading chunking persists real section/page/chunk metadata; citation lookup is exact and permission-checked.
 - [DONE] Step 7 - SHA-256 audit chaining, safe hash-column migration, verification endpoint, and tamper tests pass.
-- [PARTIAL] Step 8 - JWT, rate limiting, and injection patterns exist; upload magic-byte and filename checks remain.
+- [DONE] Step 8 - Expiring JWTs, login-failure auditing/rate limiting, expanded injection patterns, upload limits, safe filenames, and magic-byte checks are implemented.
 - [MISSING] Step 9 - Frontend requirements are largely incomplete, including escaping and review/evaluation workflows.
 - [MISSING] Step 10 - Expanded TestClient suite; current suite has 9 tests.
 - [PARTIAL] Step 11 - Architecture and stakeholder docs exist; README and generated evaluation report need completion.
