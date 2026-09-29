@@ -107,7 +107,10 @@ TF-IDF retrieval and the offline answer provider are intentionally lightweight.
 The planted dataset is deterministic but synthetic, so stakeholder review and
 representative production documents remain necessary. A resolver metric can
 also expose retrieval weaknesses; that is reported as an error rather than
-silently hidden.
+silently hidden. For example, queries for different variants of the same 
+scenario text are highly similar, causing TF-IDF to sometimes rank a similar 
+but incorrect document first. These are correctly logged as WRONG_RETRIEVAL 
+rather than resolver failures.
 
 ## Why deterministic authority scoring
 

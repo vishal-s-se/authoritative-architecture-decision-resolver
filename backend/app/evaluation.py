@@ -140,8 +140,8 @@ def _failure_category(query, actual, selected_id):
         return "AMBIGUOUS_QUERY", "The retrieval result did not preserve the multiple-match condition."
     if behavior == "FLAG_CONFLICT" and result.get("status") != "MANUAL_REVIEW_REQUIRED":
         return "APPROVAL_CONFLICT_MISSED", "Conflicting approval records did not suspend automatic resolution."
-    if expected_doc_id and not any(candidate["document_id"] == expected_doc_id for candidate in actual["candidates"]):
-        return "WRONG_RETRIEVAL", "The planted target document was absent from retrieval candidates."
+    if expected_doc_id and actual.get("selected_document_id") != expected_doc_id:
+        return "WRONG_RETRIEVAL", "The retrieval result ranked a similar but incorrect document first or absent."
     if expected_id and selected_id != expected_id:
         category = "INCORRECT_OWNERSHIP_RANKING" if query["scenario_type"] == "owner_authority_tiebreak" else "WRONG_VERSION_SELECTION"
         return category, "The resolver selected a different version from the independently planted target."
