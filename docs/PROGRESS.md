@@ -15,4 +15,6 @@ Baseline audit: 2026-09-28
 - [DONE] Step 10 - Expanded FastAPI TestClient, RBAC, access non-leak, change review, audit tamper, upload, injection, duplicate, concurrency, rollback, harder-scenario, and frontend escaping tests pass (47 total).
 - [DONE] Step 11 - README, Mermaid architecture, stakeholder validation template/summary behavior, generated evaluation report, credentials, and run instructions are documented.
 
-Current validation: `pytest` -> 47 passed, 0 failed.
+- [DONE] Step 12 - Rebalanced ground truth scenarios, analyzed weights failures in docs/decision_log.md, implemented tiered resolver policy, evaluated three arms (baseline vs weighted vs tiered), and added tests for tiered policy.
+
+Current validation: `pytest` -> 52 passed, 0 failed.

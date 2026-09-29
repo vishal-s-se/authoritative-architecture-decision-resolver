@@ -9,42 +9,42 @@ answer generation for every planted query. Evaluation state is copied to a
 temporary SQLite database, so override and rollback checks cannot alter the live
 authority state. Dataset counts: {"approvals": 310, "documents": 74, "owners": 30, "queries": 100, "versions": 243}.
 
-## Baseline vs Proposed
+## Baseline vs Weighted vs Tiered
 
-| Metric | Baseline | Proposed | Improvement |
-|---|---:|---:|---:|
-| authority_selection_accuracy | 37.00% | 96.00% | 59.00% |
-| answer_accuracy | 36.00% | 90.00% | 54.00% |
-| citation_accuracy | 100.00% | 100.00% | 0.00% |
-| access_control_accuracy | 100.00% | 100.00% | 0.00% |
-| conflict_detection_accuracy | 88.00% | 100.00% | 12.00% |
-| manual_override_success | 100.00% | 100.00% | 0.00% |
-| rollback_success | 100.00% | 100.00% | 0.00% |
+| Metric | Baseline | Weighted | Tiered | Improvement (Tiered vs Baseline) |
+|---|---:|---:|---:|---:|
+| authority_selection_accuracy | 37.00% | 96.00% | 96.00% | 59.00% |
+| answer_accuracy | 36.00% | 90.00% | 90.00% | 54.00% |
+| citation_accuracy | 100.00% | 100.00% | 100.00% | 0.00% |
+| access_control_accuracy | 100.00% | 100.00% | 100.00% | 0.00% |
+| conflict_detection_accuracy | 88.00% | 100.00% | 100.00% | 12.00% |
+| manual_override_success | 100.00% | 100.00% | 100.00% | 0.00% |
+| rollback_success | 100.00% | 100.00% | 100.00% | 0.00% |
 
 ## Per-scenario authority accuracy
 
-| Scenario type | Baseline authority | Proposed authority |
-|---|---:|---:|
-| ambiguous_query | 100.00% | 100.00% |
-| ancient_vs_new_conflicting_rejection | 0.00% | 100.00% |
-| approval_conflict | 0.00% | 100.00% |
-| clean_control | 100.00% | 100.00% |
-| equal_recency_approver_authority | 0.00% | 100.00% |
-| manual_override_active | 100.00% | 100.00% |
-| missing_metadata | 100.00% | 100.00% |
-| newer_draft_vs_older_approved | 0.00% | 100.00% |
-| newer_pending_review | 0.00% | 100.00% |
-| newer_rejected | 0.00% | 100.00% |
-| older_board_vs_newer_developer | 0.00% | 33.33% |
-| override_removed_reresolved | 0.00% | 100.00% |
-| owner_authority_tiebreak | 100.00% | 100.00% |
-| restricted_document_for_viewer | 100.00% | 100.00% |
-| revoked_newest_approval | 0.00% | 100.00% |
-| superseded_newest | 0.00% | 100.00% |
+| Scenario type | Baseline authority | Weighted authority | Tiered authority |
+|---|---:|---:|---:|
+| ambiguous_query | 100.00% | 100.00% | 100.00% |
+| ancient_vs_new_conflicting_rejection | 0.00% | 100.00% | 100.00% |
+| approval_conflict | 0.00% | 100.00% | 100.00% |
+| clean_control | 100.00% | 100.00% | 100.00% |
+| equal_recency_approver_authority | 0.00% | 100.00% | 100.00% |
+| manual_override_active | 100.00% | 100.00% | 100.00% |
+| missing_metadata | 100.00% | 100.00% | 100.00% |
+| newer_draft_vs_older_approved | 0.00% | 100.00% | 100.00% |
+| newer_pending_review | 0.00% | 100.00% | 100.00% |
+| newer_rejected | 0.00% | 100.00% | 100.00% |
+| older_board_vs_newer_developer | 0.00% | 33.33% | 33.33% |
+| override_removed_reresolved | 0.00% | 100.00% | 100.00% |
+| owner_authority_tiebreak | 100.00% | 100.00% | 100.00% |
+| restricted_document_for_viewer | 100.00% | 100.00% | 100.00% |
+| revoked_newest_approval | 0.00% | 100.00% | 100.00% |
+| superseded_newest | 0.00% | 100.00% | 100.00% |
 
 ## Error analysis
 
-The proposed run assigns one category to every failed query. Counts and up to
+The proposed runs (tiered/weighted) assign one category to every failed query. Counts and up to
 three concrete examples are returned by `GET /api/eval/error-analysis`.
 
 ```json
@@ -183,7 +183,7 @@ three concrete examples are returned by `GET /api/eval/error-analysis`.
 ```json
 {
   "default": {
-    "run_id": "d6da1dc8",
+    "run_id": "eb84643a",
     "weights": {
       "approval": 0.4,
       "ownership": 0.25,
@@ -198,7 +198,7 @@ three concrete examples are returned by `GET /api/eval/error-analysis`.
     "conflict_detection_accuracy": 100.0
   },
   "recency_heavy": {
-    "run_id": "ccb77693",
+    "run_id": "a08e1975",
     "weights": {
       "approval": 0.2,
       "ownership": 0.2,
@@ -213,7 +213,7 @@ three concrete examples are returned by `GET /api/eval/error-analysis`.
     "conflict_detection_accuracy": 100.0
   },
   "approval_only": {
-    "run_id": "c725849c",
+    "run_id": "d461c9da",
     "weights": {
       "approval": 1.0,
       "ownership": 0.0,
