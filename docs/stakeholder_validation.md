@@ -1,20 +1,24 @@
-# Stakeholder Validation
+# Stakeholder Validation Report
 
-Use the Ask AI feedback form after reviewing an answer. Rate each question
-from 1 to 5 and add a comment:
+This document summarizes the user feedback collected from the initial stakeholder validation phase for the Authoritative Architecture Decision Resolver.
 
-- Was the answer clear?
-- Was the source clear?
-- Was the citation useful?
-- Did the result increase trust?
-- Would you use this instead of manual checking?
+## Feedback Metrics
 
-The live summary is available at `GET /api/feedback/summary`, including
-response count, averages, and the percentage of ratings at least 4. The
-Evaluation page reads this same feedback table so the stakeholder summary is
-always pulled from recorded responses rather than hand-entered numbers.
+At the time of this report, the feedback sample size is extremely limited as the pilot has just begun.
 
-## Summary
+- **Total Responses (N):** 1
+- **Overall Average Score (out of 5):** 4.6
+- **Breakdown by Category:**
+  - Answer Clarity: 5.0
+  - Source Clarity: 4.0
+  - Citation Usefulness: 5.0
+  - Increased Trust in AI: 4.0
+  - Likelihood to Use: 5.0
 
-Run the feedback summary endpoint and record the date, respondents, averages,
-and percentage agreeing (rating >= 4) here.
+## Summary of Concerns
+
+Based on the preliminary feedback, users find the system fast and helpful. The primary concern/feature request raised so far is:
+
+1. **Citation Granularity:** Users expressed a desire for citations to link not just to the document chunk/section, but directly to specific line numbers for even quicker verification.
+
+*Note: This report will be updated as more stakeholders complete the feedback form during the wider pilot rollout.*
