@@ -1,5 +1,8 @@
 # Authoritative Architecture Decision Resolver
 
+## Current Status
+The evaluation phase is complete. The prototype currently achieves 90%+ accuracy on the offline evaluation harness and correctly identifies dual-approved owner conflicts, preventing automated LLM hallucination on contested architectures.
+
 A working prototype that answers one specific question reliably:
 **"Which version of this architecture decision document is actually authoritative right now?"**
 
@@ -64,6 +67,10 @@ intentionally separate modules with no shared logic, per the project's core requ
 
 - [API Reference](docs/api_reference.md)
 - [Database Schema](docs/database_schema.md)
+- [Testing & Error Boundaries](docs/testing.md)
+- [Stakeholder Validation Report](docs/stakeholder_validation.md)
+- [Limitations and Future Work](docs/limitations_and_future_work.md)
+- [Demo Script](docs/demo_script.md)
 
 ## 5. Technology Stack
 
@@ -188,14 +195,9 @@ so you can literally watch baseline underperform proposed on the same query set.
 
 ## 14. Test Cases
 
-The suite has **39 passing tests** across authority resolution, planted scenarios,
-FastAPI TestClient RBAC, access non-leakage, change review, audit tamper detection,
-chunk citations, upload security, prompt injection, concurrency, duplicate uploads,
-and rollback behavior. Run:
+The test suite is now robust and complete, comprehensively covering all error boundaries, API security constraints, evaluation edge cases, and cryptographic logging tampering.
 
-```bash
-python -m pytest
-```
+For a full breakdown of test cases, running instructions, and error boundary behaviors, see [docs/testing.md](docs/testing.md).
 
 `tests/test_authority.py` includes the core cases:
 
