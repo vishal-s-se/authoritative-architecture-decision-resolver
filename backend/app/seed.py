@@ -256,8 +256,9 @@ def _plant_eval_scenarios(conn, owner_ids):
         (override_removed_doc, override_removed_versions[1], "temporary planted override", "admin", "2026-01-01T00:00:00+00:00"),
     )
     conn.execute("DELETE FROM authoritative WHERE document_id=?", (override_removed_doc,))
+    variants = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta"]
     for index in range(7):
-        add_fixture("older_board_vs_newer_developer", f"Older board versus developer variant {index + 1}", [
+        add_fixture("older_board_vs_newer_developer", f"Older board versus developer variant {variants[index]}", [
             (1, "APPROVED", board, f"The board mechanism is mechanism-{30 + index * 2}.", "2025-01-01T00:00:00+00:00"),
             (2, "APPROVED", developer, f"The newer developer mechanism is mechanism-{31 + index * 2}.", "2026-01-01T00:00:00+00:00"),
         ], 0)

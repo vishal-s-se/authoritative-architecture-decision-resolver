@@ -43,15 +43,22 @@ def _mock_answer(question: str, source_text: str, doc_title: str, version_number
     simple keyword overlap, and returns them as the answer, refusing when
     overlap is too low (avoids hallucination by construction).
     """
-    q_words = set(w.lower() for w in re.findall(r"[a-zA-Z0-9]+", question) if len(w) > 2)
+    STOPWORDS = {"the", "a", "an", "is", "are", "was", "were", "of", "and", "in", "to", "for", "with", "on", "at", "by"}
+    q_words = set(w.lower() for w in re.findall(r"[a-zA-Z0-9]+", question) if len(w) > 2 and w.lower() not in STOPWORDS)
     sentences = re.split(r"(?<=[.!?])\s+", source_text)
     best_sentence, best_overlap = None, 0
-    for i, sent in enumerate(sentences):
-        s_words = set(w.lower() for w in re.findall(r"[a-zA-Z0-9]+", sent))
-        overlap = len(q_words & s_words)
-        if overlap > best_overlap:
-            best_overlap = overlap
-            best_sentence = (i, sent.strip())
+    
+    # Try full text match first if sentence matching is too strict
+    s_words_full = set(w.lower() for w in re.findall(r"[a-zA-Z0-9]+", source_text) if w.lower() not in STOPWORDS)
+    if not (q_words & s_words_full):
+        best_overlap = 0
+    else:
+        for i, sent in enumerate(sentences):
+            s_words = set(w.lower() for w in re.findall(r"[a-zA-Z0-9]+", sent) if w.lower() not in STOPWORDS)
+            overlap = len(q_words & s_words)
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_sentence = (i, sent.strip())
 
     if not best_sentence or best_overlap == 0:
         return {
@@ -119,10 +126,13 @@ def answer_question(question, authoritative_version, document_title):
     else:
         result = _real_llm_answer(question, safe_text, document_title, authoritative_version["version_number"])
 
-    citations = json.loads(authoritative_version.get("citations_json") or "[]")
-    citation = citations[0] if citations else {
-        "section": "N/A", "page": "N/A", "chunk_id": authoritative_version.get("id", "unknown-version")
-    }
+    if not result["grounded"]:
+        citation = None
+    else:
+        citations = json.loads(authoritative_version.get("citations_json") or "[]")
+        citation = citations[0] if citations else {
+            "section": "N/A", "page": "N/A", "chunk_id": authoritative_version.get("id", "unknown-version")
+        }
     return {
         "answer": result["answer"],
         "grounded": result["grounded"],

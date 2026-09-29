@@ -97,3 +97,18 @@ def test_harder_scenario_ground_truth_is_not_newest_approved(scenario_type):
                 (row["expected_document_id"],),
             ).fetchone()
             assert row["expected_version_id"] != newest["id"]
+
+
+def test_ai_answer_grounded_citation():
+    from app.ai import answer_question
+    version = {"id": "v1", "content": "The architecture is mechanism-3.", "version_number": 1, "citations_json": '[{"chunk_id": "c1", "section": "1", "page": "1"}]'}
+    
+    # Test grounded (should have citation)
+    res_grounded = answer_question("What is the mechanism?", version, "Doc")
+    assert res_grounded["grounded"] is True
+    assert res_grounded["citation"] is not None
+
+    # Test not grounded (should NOT have citation)
+    res_ungrounded = answer_question("What color is the sky?", version, "Doc")
+    assert res_ungrounded["grounded"] is False
+    assert res_ungrounded["citation"] is None
