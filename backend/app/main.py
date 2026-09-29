@@ -1,3 +1,8 @@
+"""
+FastAPI application entrypoint and route definitions.
+Responsibility: Exposes the HTTP API and wires together all backend modules.
+What it must never do: It must never contain business logic for authority resolution or AI answering directly.
+"""
 import os
 import json
 import uuid

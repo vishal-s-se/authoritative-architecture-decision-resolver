@@ -1,3 +1,8 @@
+"""
+Evaluation harness and offline test suite.
+Responsibility: Runs offline experiments and baseline vs proposed metrics.
+What it must never do: It must never write evaluation data to production tables or leak evaluation data into live queries.
+"""
 import json
 import os
 import shutil
@@ -254,6 +259,20 @@ def _persist(mode, metrics, weights, rows):
 
 
 def run_evaluation(mode, user_role="VIEWER", weights=None):
+    """
+    Run the full evaluation harness against planted seed queries in a temporary database.
+    
+    Args:
+        mode (str): The resolver mode ('baseline', 'proposed', 'weighted', 'tiered').
+        user_role (str, optional): The user role simulating the queries.
+        weights (dict, optional): Custom scoring weights for the 'weighted' mode.
+        
+    Returns:
+        dict: Evaluation results containing accuracy metrics and success rates.
+        
+    Example:
+        run_evaluation("baseline") -> {"authority_selection_accuracy": 50.0, ...}
+    """
     if mode not in ("baseline", "proposed", "weighted", "tiered"):
         raise ValueError("mode must be 'baseline', 'proposed', 'weighted', or 'tiered'")
     active_weights = deepcopy(weights or load_config()["weights"])
@@ -280,6 +299,15 @@ def run_evaluation(mode, user_role="VIEWER", weights=None):
 
 
 def error_analysis():
+    """
+    Categorize errors from the latest proposed evaluation run and provide examples.
+    
+    Returns:
+        dict: Counts of errors by category and up to 3 examples per category.
+        
+    Example:
+        error_analysis() -> {"counts": {"HALLUCINATION": 2}, "examples": {...}}
+    """
     proposed = next((result for result in latest_results() if result["mode"] in ("proposed", "tiered", "weighted")), None)
     rows = proposed.get("rows", []) if proposed else []
     examples = {category: [] for category in sorted(ERROR_CATEGORIES)}
@@ -293,6 +321,15 @@ def error_analysis():
 
 
 def sensitivity_experiment():
+    """
+    Run the evaluation harness with different weight configurations to measure sensitivity.
+    
+    Returns:
+        dict: Comparison of metrics across multiple weight scenarios.
+        
+    Example:
+        sensitivity_experiment() -> {"default": {...}, "recency_heavy": {...}}
+    """
     default = load_config()["weights"]
     alternatives = {
         "default": default,
@@ -315,6 +352,15 @@ def sensitivity_experiment():
 
 
 def latest_results():
+    """
+    Retrieve the most recent evaluation run results.
+    
+    Returns:
+        list[dict]: List of the last 10 evaluation run result payloads.
+        
+    Example:
+        latest_results() -> [{"run_id": "abcd123", "mode": "baseline", ...}]
+    """
     conn = get_conn()
     rows = conn.execute("SELECT * FROM eval_results ORDER BY id DESC LIMIT 10").fetchall()
     return [{"run_id": row["run_id"], "mode": row["mode"], "created_at": row["created_at"],

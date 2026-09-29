@@ -24,6 +24,18 @@ def _parse_date(s):
 
 
 def get_versions_for_document(document_id):
+    """
+    Retrieve all versions for a given document, ordered by newest version number first.
+    
+    Args:
+        document_id (str): The document ID.
+        
+    Returns:
+        list[dict]: A list of version records.
+        
+    Example:
+        get_versions_for_document("doc-1") -> [{"id": "doc-1-v2", "version_number": 2, ...}]
+    """
     conn = get_conn()
     rows = conn.execute(
         "SELECT * FROM versions WHERE document_id=? ORDER BY version_number DESC", (document_id,)
@@ -32,6 +44,18 @@ def get_versions_for_document(document_id):
 
 
 def get_approvals_for_version(version_id):
+    """
+    Retrieve all approval decisions for a specific version.
+    
+    Args:
+        version_id (str): The version ID.
+        
+    Returns:
+        list[dict]: A list of approval records including approver authority level.
+        
+    Example:
+        get_approvals_for_version("doc-1-v2") -> [{"decision": "APPROVED", "authority_level": 1.0, ...}]
+    """
     conn = get_conn()
     rows = conn.execute(
         """SELECT approvals.*, owners.name as approver_name, owners.authority_level
@@ -43,7 +67,18 @@ def get_approvals_for_version(version_id):
 
 
 def detect_conflict(version_id):
-    """Return True if a version has both an APPROVED and REJECTED decision on record."""
+    """
+    Determine if a version has conflicting approval decisions (both APPROVED and REJECTED).
+    
+    Args:
+        version_id (str): The version ID.
+        
+    Returns:
+        bool: True if there is a conflict, False otherwise.
+        
+    Example:
+        detect_conflict("doc-1-v2") -> True
+    """
     approvals = get_approvals_for_version(version_id)
     decisions = {a["decision"] for a in approvals}
     return "APPROVED" in decisions and "REJECTED" in decisions
@@ -102,6 +137,20 @@ def _evidence_score(version):
 
 
 def score_version(version, cfg=None, all_versions=None):
+    """
+    Calculate the authority score for a single version based on configured weights.
+    
+    Args:
+        version (dict): The version record.
+        cfg (dict, optional): The current system configuration.
+        all_versions (list[dict], optional): All versions for the document (for relative scoring).
+        
+    Returns:
+        tuple: (Total score (0-100 float), Breakdown (dict), Status (str))
+        
+    Example:
+        score_version(v) -> (85.5, {"approval": {"points": 40.0, ...}}, "APPROVED")
+    """
     cfg = cfg or load_config()
     all_versions = all_versions or get_versions_for_document(version["document_id"])
     approvals = get_approvals_for_version(version["id"])
@@ -139,10 +188,20 @@ def score_version(version, cfg=None, all_versions=None):
 
 def resolve_authority(document_id, user=None, persist=True, cfg=None):
     """
-    Deterministically pick the authoritative version for a document.
-    Returns dict with version, score, breakdown, conflict flag, and whether
-    a manual override is currently active (overrides always win unless
-    explicitly cleared).
+    Deterministically pick the authoritative version for a document based on scores.
+    Handles manual overrides and approval conflicts.
+    
+    Args:
+        document_id (str): The document ID.
+        user (str, optional): The user triggering the resolution.
+        persist (bool, optional): Whether to write the result to the authoritative table.
+        cfg (dict, optional): System configuration overrides.
+        
+    Returns:
+        dict or None: Resolution result containing the chosen version and its score, or None if no versions.
+        
+    Example:
+        resolve_authority("doc-1") -> {"version": {"id": "doc-1-v2", ...}, "score": 95.0, ...}
     """
     conn = get_conn()
     cfg = cfg or load_config()
@@ -273,7 +332,19 @@ def _json_dumps(obj):
 
 
 def baseline_resolve(document_id):
-    """Naive baseline: newest version wins, full stop. No approval/ownership logic."""
+    """
+    Naive baseline: newest version wins, full stop. No approval/ownership logic.
+    Used exclusively for comparison and evaluation, never for production routing.
+    
+    Args:
+        document_id (str): The document ID.
+        
+    Returns:
+        dict or None: Result containing the newest version.
+        
+    Example:
+        baseline_resolve("doc-1") -> {"version": {"id": "doc-1-v3", ...}, "method": "baseline_newest"}
+    """
     versions = get_versions_for_document(document_id)
     if not versions:
         return None
@@ -282,6 +353,21 @@ def baseline_resolve(document_id):
 
 
 def manual_override(document_id, version_id, admin_user, reason):
+    """
+    Force a specific version to be the authoritative version, overriding calculated scores.
+    
+    Args:
+        document_id (str): The document ID.
+        version_id (str): The version ID to force.
+        admin_user (str): The administrator username making the change.
+        reason (str): Justification for the override.
+        
+    Returns:
+        dict: Details of the override including the forced score.
+        
+    Example:
+        manual_override("doc-1", "doc-1-v1", "admin", "Emergency fix") -> {"score": 80.0, "status": "DRAFT", ...}
+    """
     conn = get_conn()
     versions = {v["id"]: v for v in get_versions_for_document(document_id)}
     if version_id not in versions:
@@ -316,7 +402,20 @@ def manual_override(document_id, version_id, admin_user, reason):
 
 
 def rollback(document_id, admin_user):
-    """Restore the previous authoritative version, keeping the override event in history."""
+    """
+    Restore the previous authoritative version (before an override or recalculation), 
+    keeping the override event in history.
+    
+    Args:
+        document_id (str): The document ID.
+        admin_user (str): The administrator username performing the rollback.
+        
+    Returns:
+        dict: The rollback result containing the restored version and score.
+        
+    Example:
+        rollback("doc-1", "admin") -> {"version_id": "doc-1-v1", "score": 90.0}
+    """
     conn = get_conn()
     row = conn.execute("SELECT * FROM authoritative WHERE document_id=?", (document_id,)).fetchone()
     if not row or not row["previous_version_id"]:

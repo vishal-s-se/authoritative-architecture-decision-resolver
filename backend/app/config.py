@@ -3,6 +3,11 @@ Central configuration for the authority scoring model.
 All weights/levels are runtime-mutable through the /api/settings endpoints
 and are persisted to config.json so changes survive restarts.
 """
+"""
+Configuration management.
+Responsibility: Loads and saves runtime settings (weights, policies) to config.json.
+What it must never do: It must never mutate the database directly.
+"""
 import json
 import os
 import threading

@@ -1,5 +1,7 @@
 """
 Synthetic evaluation dataset generator.
+Responsibility: Generates sample documents, versions, users, and ground-truth queries for evaluation.
+What it must never do: It must never overwrite production data or be executed on a non-demo environment.
 
 Produces (approximately, per project spec):
   50 architecture documents

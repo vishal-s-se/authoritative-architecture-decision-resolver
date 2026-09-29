@@ -1,5 +1,7 @@
 """
 AI answer-generation layer.
+Responsibility: Generates grounded answers based strictly on the provided version context.
+What it must never do: It must never decide authority, retrieve documents, or bypass access control.
 
 Rules enforced here:
 1. The AI receives ONLY the single authoritative version's content, chosen

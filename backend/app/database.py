@@ -1,5 +1,7 @@
 """
 SQLite database layer for the Authoritative Architecture Decision Resolver.
+Responsibility: Provides ANSI-SQL data storage and connection lifecycle management.
+What it must never do: It must never encode business rules like authority scoring.
 Designed so migration to PostgreSQL only requires swapping the connection
 layer (all SQL is standard ANSI SQL, no SQLite-only syntax used except
 AUTOINCREMENT which has a direct Postgres equivalent).

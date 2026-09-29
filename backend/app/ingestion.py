@@ -1,7 +1,7 @@
 """
-Document ingestion: extracts text + metadata from PDF/DOCX/TXT uploads,
-generates stable IDs and content hashes, and inserts a new document version.
-Missing metadata (owner, status, dates) falls back to admin-supplied values.
+Document ingestion layer.
+Responsibility: extracts text + metadata from PDF/DOCX/TXT uploads, generates stable IDs and content hashes, and inserts a new document version.
+What it must never do: It must never determine authoritative version or alter authority configuration.
 """
 import hashlib
 import os

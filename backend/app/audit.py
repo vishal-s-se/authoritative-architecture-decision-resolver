@@ -1,3 +1,8 @@
+"""
+Immutable cryptographic audit log layer.
+Responsibility: Records every state-changing action in the system securely.
+What it must never do: It must never provide an API or function to delete or update an event. It is strictly append-only.
+"""
 import json
 import hashlib
 from datetime import datetime, timezone
@@ -6,7 +11,26 @@ from .database import get_conn
 
 def log_event(user, action, document_id=None, version_id=None,
               previous_value=None, new_value=None, reason=None, metadata=None):
-    """Append-only audit event. There is no UPDATE/DELETE path exposed for this table."""
+    """
+    Append an event to the secure audit log with a cryptographic hash chain.
+    There is no UPDATE/DELETE path exposed for this table.
+    
+    Args:
+        user (str): Username initiating the action.
+        action (str): Action type (e.g., 'MANUAL_OVERRIDE').
+        document_id (str, optional): Target document ID.
+        version_id (str, optional): Target version ID.
+        previous_value (any, optional): State before change.
+        new_value (any, optional): State after change.
+        reason (str, optional): Justification for the action.
+        metadata (dict, optional): Extra event data.
+        
+    Returns:
+        None
+        
+    Example:
+        log_event("admin", "MANUAL_OVERRIDE", "doc-1", "doc-1-v2", reason="Emergency")
+    """
     conn = get_conn()
     timestamp = datetime.now(timezone.utc).isoformat()
     previous = conn.execute("SELECT event_hash FROM audit_log ORDER BY event_id DESC LIMIT 1").fetchone()
@@ -38,6 +62,19 @@ def log_event(user, action, document_id=None, version_id=None,
 
 
 def get_events(limit=200, document_id=None):
+    """
+    Retrieve recent audit events.
+    
+    Args:
+        limit (int): Max number of events to return.
+        document_id (str, optional): Filter by document ID.
+        
+    Returns:
+        list[dict]: List of audit log records.
+        
+    Example:
+        get_events(10, "doc-1") -> [{"event_id": 1, "action": "CREATE", ...}]
+    """
     conn = get_conn()
     if document_id:
         rows = conn.execute(
@@ -52,6 +89,15 @@ def get_events(limit=200, document_id=None):
 
 
 def verify_chain():
+    """
+    Verify the cryptographic hash chain of all audit events.
+    
+    Returns:
+        dict: {"valid": bool, "first_broken_event": int or None, "events_checked": int}
+        
+    Example:
+        verify_chain() -> {"valid": True, "first_broken_event": None, "events_checked": 50}
+    """
     conn = get_conn()
     rows = conn.execute("SELECT * FROM audit_log ORDER BY event_id").fetchall()
     previous_hash = ""

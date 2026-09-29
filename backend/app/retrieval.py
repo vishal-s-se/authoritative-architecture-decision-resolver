@@ -1,4 +1,8 @@
 """
+Lightweight local retrieval layer.
+Responsibility: Finds candidate documents by semantic relevance to the query.
+What it must never do: It must never decide which version of a document is authoritative or trustworthy.
+
 Lightweight local retrieval. Uses TF-IDF cosine similarity as a practical
 stand-in for embeddings/vector search so the prototype runs fully offline
 with no external API keys. Swappable for FAISS/Chroma + real embeddings
