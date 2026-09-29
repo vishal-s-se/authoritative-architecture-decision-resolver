@@ -60,7 +60,12 @@ docs/            (this README covers the required documentation topics)
 **Retrieval determines relevance. The resolver determines trust.** These are
 intentionally separate modules with no shared logic, per the project's core requirement.
 
-## 4. Technology Stack
+## 4. Documentation
+
+- [API Reference](docs/api_reference.md)
+- [Database Schema](docs/database_schema.md)
+
+## 5. Technology Stack
 
 - Backend: Python 3.11+, FastAPI, Uvicorn, SQLite (WAL-friendly, ANSI SQL only —
   swapping `database.py`'s connection layer for `psycopg2`/`asyncpg` is the only
